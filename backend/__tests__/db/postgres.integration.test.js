@@ -42,6 +42,11 @@ const game = (overrides = {}) => ({
 
 const player = { id: 'p1', name: 'Anna', credits: 0, createdAt: '2026-01-01T00:00:00.000Z' };
 
+// A write that fails stays queued and the store tries it again later (5 seconds by default). Here the
+// tables are dropped and recreated between tests: a retry that fired in a later test would write the old
+// game into the new tables. So a store never retries on its own, and a test that wants the queue flushes it.
+const NO_RETRY = { retryDelayMs: 60 * 60 * 1000 };
+
 describeWithDb('PostgreSQL store', () => {
   let pool;
   let store;
@@ -65,7 +70,7 @@ describeWithDb('PostgreSQL store', () => {
       'DROP TABLE IF EXISTS audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
     );
     await runMigrations(pool);
-    store = createPostgresStore(pool);
+    store = createPostgresStore(pool, NO_RETRY);
   });
 
   afterAll(async () => {
@@ -796,11 +801,23 @@ describeWithDb('PostgreSQL store', () => {
     });
 
     test('what is still waiting to be written for a game is written first: nothing arrives after the closing', async () => {
-      const slow = createPostgresStore(pool, { retryDelayMs: 60000 });
-      await slow.saveGame(finished({ id: 'g7' }), [{ playerId: 'p1', gameId: 'g7', type: 'game_payout', amount: 50 }]);
+      // The fee is more than the 300 credits of p1: the write fails and stays queued, the game with it
+      await expect(store.saveGame(finished({ id: 'g7' }), [
+        { playerId: 'p1', gameId: 'g7', type: 'game_entry', amount: -350 },
+      ])).rejects.toMatchObject({ code: INSUFFICIENT_CREDITS });
+      expect(store.status().pendingWrites).toBe(1);
+      await expect(store.findGame('g7')).resolves.toBeNull();
+      await store.adjustCredits('p1', 100, { actor: admin, reason: 'x' });
 
-      await slow.deleteAccount('p1', { actor: admin, reason: 'x' });
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
 
+      // The queue was written before the closing (the fee and the game), then the balance was closed
+      expect(store.status().pendingWrites).toBe(0);
+      await expect(store.findGame('g7')).resolves.toMatchObject({ status: 'finished' });
+      const { rows } = await pool.query(
+        "SELECT type, amount FROM credit_transactions WHERE player_id = 'p1' ORDER BY id DESC LIMIT 2",
+      );
+      expect(rows.map((r) => [r.type, Number(r.amount)])).toEqual([['account_closed', -50], ['game_entry', -350]]);
       await expect(balance('p1')).resolves.toEqual({ credits: 0, ledger: 0 });
     });
 
