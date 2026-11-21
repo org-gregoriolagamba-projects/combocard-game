@@ -63,7 +63,8 @@ export const drawCard = createAsyncThunk(
       const result = await gameService.drawCard(gameId);
       return result;
     } catch (error) {
-      return rejectWithValue(error.message);
+      // retryAfter: the seconds the server says are left (429): the reducer starts the wait from them
+      return rejectWithValue(error.message, { retryAfter: error.retryAfter });
     }
   }
 );
@@ -262,7 +263,15 @@ const gameSlice = createSlice({
       // Draw card
       .addCase(drawCard.fulfilled, (state, action) => {
         state.ultimaCartaEstratta = action.payload.carta;
-        state.drawCooldown = 8;
+        // The wait of the game (its own copy of the settings); without it no wait is invented, the server answers 429
+        state.drawCooldown = state.game?.settings?.drawCooldownSeconds ?? 0;
+      })
+      // Too soon (429): the wait starts again from the seconds the server says are left
+      .addCase(drawCard.rejected, (state, action) => {
+        const seconds = action.meta?.retryAfter;
+        if (seconds > 0) {
+          state.drawCooldown = seconds;
+        }
       })
       // Declare the jolly: the answer carries the pause that has started
       .addCase(declareJolly.fulfilled, (state, action) => {

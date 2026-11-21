@@ -17,8 +17,6 @@ import { Clock, Dices, Pause, Sparkles } from "lucide-react";
 import ConteggioJolly from "./ConteggioJolly";
 import ConteggioTurno from "./ConteggioTurno";
 
-const COOLDOWN_SECONDS = 8;
-
 // What the countdown needs from the turn
 const contoProps = ({ scadenza, sospeso, restanteMs }) => ({ scadenza, sospeso, restanteMs });
 
@@ -32,6 +30,8 @@ function BarraAzione({
   espulso = false,
   status,
   drawCooldown = 0,
+  // The wait of the game in seconds, the total the bar is measured on (without it the bar stays empty)
+  attesaTotale = 0,
   jollyMode = null,
   jollyPending = null,
   jollyConversione = null,
@@ -168,7 +168,7 @@ function BarraAzione({
             <span
               aria-hidden="true"
               className="absolute inset-y-0 left-0 bg-black/25 transition-all duration-1000 ease-linear motion-reduce:transition-none"
-              style={{ width: `${(drawCooldown / COOLDOWN_SECONDS) * 100}%` }}
+              style={{ width: `${attesaTotale > 0 ? Math.min(100, (drawCooldown / attesaTotale) * 100) : 0}%` }}
             />
           )}
           <span className="relative flex items-center justify-center gap-2 tabular-nums">
@@ -222,6 +222,7 @@ BarraAzione.propTypes = {
   espulso: PropTypes.bool,
   status: PropTypes.string,
   drawCooldown: PropTypes.number,
+  attesaTotale: PropTypes.number,
   jollyMode: PropTypes.string,
   jollyPending: PropTypes.shape({
     valore: PropTypes.string,

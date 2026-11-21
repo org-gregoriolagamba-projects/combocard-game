@@ -611,4 +611,41 @@ describe('GameScreen', () => {
       expect(store.getState().ui.toasts).toHaveLength(0);
     });
   });
+
+  describe('the wait between draws in the classic mode, from the settings of the game', () => {
+    beforeEach(() => window.localStorage.setItem('combocard.guida-letta', '1'));
+    afterAll(() => window.localStorage.clear());
+
+    const classic = (drawCooldown, settings) => {
+      const base = stateFor('anna');
+      return {
+        ...base,
+        game: {
+          ...base.game,
+          drawCooldown,
+          game: { ...base.game.game, estrazione: 'creatore', settings },
+        },
+      };
+    };
+
+    test('the bar of the wait is the share of the total of the game', () => {
+      const { container } = renderWithProviders(<GameScreen />, { preloadedState: classic(6, { drawCooldownSeconds: 12 }) });
+
+      const bars = [...container.querySelectorAll('button span[aria-hidden="true"][style]')].map((el) => el.style.width);
+      expect(bars.length).toBeGreaterThan(0);
+      expect(bars.every((width) => width === '50%')).toBe(true);
+    });
+
+    test('a 429 starts the wait from the seconds left, and the message of the error is shown', async () => {
+      const tooSoon = Object.assign(new Error("Attendi 3 secondi prima di estrarre un'altra carta"), { status: 429, retryAfter: 3 });
+      gameService.drawCard.mockRejectedValue(tooSoon);
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: classic(0, { drawCooldownSeconds: 8 }) });
+
+      fireEvent.click(screen.getAllByRole('button', { name: /Estrai Carta/ })[0]);
+
+      await waitFor(() => expect(store.getState().game.drawCooldown).toBe(3));
+      expect(store.getState().ui.toasts.at(-1).message).toBe("Attendi 3 secondi prima di estrarre un'altra carta");
+      expect(screen.getAllByRole('button', { name: /Attendi [23]s/ })[0]).toBeDisabled();
+    });
+  });
 });

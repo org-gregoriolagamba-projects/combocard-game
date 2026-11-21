@@ -298,4 +298,27 @@ describe('BarraAzione', () => {
       expect(screen.queryByTestId('conto-turno')).not.toBeInTheDocument();
     });
   });
+
+  describe('the bar of the wait, with the total of the game', () => {
+    const barWidth = (container) => container.querySelector('button span[aria-hidden="true"][style]')?.style.width;
+
+    test('the bar is the share of the wait that is left, out of the total of the game', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={6} attesaTotale={12} />);
+
+      expect(barWidth(container)).toBe('50%');
+    });
+
+    test('another total gives another share', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={3} attesaTotale={12} />);
+
+      expect(barWidth(container)).toBe('25%');
+    });
+
+    test('without the total nothing breaks and the bar is empty: no total is invented', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={6} />);
+
+      expect(barWidth(container)).toBe('0%');
+      expect(screen.getByRole('button', { name: /Attendi 6s/ })).toBeDisabled();
+    });
+  });
 });

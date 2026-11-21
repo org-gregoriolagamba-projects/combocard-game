@@ -337,6 +337,7 @@ function GameScreen() {
       turno={turno ? { scadenza: turno.ricevutoA + turno.scadenzaIn, sospeso: turno.sospeso, restanteMs: turno.scadenzaIn } : null}
       status={game?.status}
       drawCooldown={attesaEstrazione}
+      attesaTotale={game?.settings?.drawCooldownSeconds}
       jollyMode={isGameFinished ? null : jollyMode}
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       jollyConversione={conversione}
