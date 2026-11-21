@@ -7,6 +7,7 @@
 
 import Joi from "joi";
 import { ACCOUNT_ROLES, COLLECTION_TYPES, GAME_DEFAULTS } from "../config/constants.js";
+import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS } from "../config/gameSettings.js";
 
 const integer = Joi.number().integer().strict();
 const collectionType = Joi.string().valid(...Object.values(COLLECTION_TYPES));
@@ -109,6 +110,16 @@ export const adminAdjustCreditsSchema = Joi.object({
 
 // Suspend, reinstate or close the sessions of a user: always with the reason that goes in the audit log
 export const adminUserActionSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(200).required(),
+});
+
+// Some of the game settings, each a whole number inside its interval (a string is not converted), with the
+// reason that goes in the audit log. That the maximum of players is not below the minimum depends on the
+// current values: the service checks it on the result
+export const adminUpdateSettingsSchema = Joi.object({
+  values: Joi.object(
+    Object.fromEntries(GAME_SETTING_KEYS.map((key) => [key, integer.min(GAME_SETTING_LIMITS[key].min).max(GAME_SETTING_LIMITS[key].max)])),
+  ).min(1).required(),
   reason: Joi.string().trim().min(1).max(200).required(),
 });
 

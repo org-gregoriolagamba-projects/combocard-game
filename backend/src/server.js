@@ -22,7 +22,7 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
 
 // Import routes
-import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes, meRoutes } from "./routes/index.js";
+import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes, meRoutes, settingsRoutes } from "./routes/index.js";
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
@@ -117,6 +117,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/me", meRoutes);
+app.use("/api/settings", settingsRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/games", gameRoutes);
 

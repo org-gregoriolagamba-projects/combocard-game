@@ -9,12 +9,14 @@ import { Router } from "express";
 import * as adminController from "../controllers/admin.controller.js";
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validation.middleware.js";
+import { settingsLimiter } from "../middleware/rateLimiter.middleware.js";
 import {
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
   adminCancelGameSchema,
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
+  adminUpdateSettingsSchema,
   adminUpdateUserSchema,
   adminUserActionSchema,
 } from "../validation/schemas.js";
@@ -120,5 +122,19 @@ router.get("/stats", adminController.getStats);
  * @access  Admin
  */
 router.get("/audit", validate(adminAuditQuerySchema, "query"), adminController.listAuditLog);
+
+/**
+ * @route   GET /api/admin/settings
+ * @desc    The game settings, with their limits and who changed them last
+ * @access  Admin
+ */
+router.get("/settings", adminController.getSettings);
+
+/**
+ * @route   PATCH /api/admin/settings
+ * @desc    Change some of the game settings, with a reason
+ * @access  Admin
+ */
+router.patch("/settings", settingsLimiter, validate(adminUpdateSettingsSchema), adminController.updateSettings);
 
 export default router;

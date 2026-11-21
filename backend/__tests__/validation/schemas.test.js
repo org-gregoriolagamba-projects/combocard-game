@@ -21,6 +21,7 @@ import {
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
+  adminUpdateSettingsSchema,
 } from '../../src/validation/schemas.js';
 
 const isValid = (schema, body) => !schema.validate(body).error;
@@ -299,5 +300,37 @@ describe('admin schemas', () => {
     ])('rejects %s', (_name, body) => {
       expect(deleteAccountSchema.validate(body).error).toBeDefined();
     });
+  });
+});
+
+describe('adminUpdateSettingsSchema', () => {
+  const body = (overrides = {}) => ({ values: { drawCooldownSeconds: 12 }, reason: 'più tempo', ...overrides });
+
+  test('accepts some keys with a reason, and all six at once', () => {
+    expect(isValid(adminUpdateSettingsSchema, body())).toBe(true);
+    expect(isValid(adminUpdateSettingsSchema, body({
+      values: { minPlayers: 2, maxPlayers: 20, requiredCredits: 10000, jollyHoldSeconds: 10, jollyMaxDeclarations: 1, drawCooldownSeconds: 30 },
+    }))).toBe(true);
+  });
+
+  test.each([
+    ['no values', { values: undefined }],
+    ['empty values', { values: {} }],
+    ['an unknown key', { values: { cheat: 1 } }],
+    ['a string, not converted', { values: { requiredCredits: '150' } }],
+    ['a decimal', { values: { requiredCredits: 150.5 } }],
+    ['a value below the interval', { values: { drawCooldownSeconds: 2 } }],
+    ['a value above the interval', { values: { drawCooldownSeconds: 31 } }],
+    ['no reason', { reason: undefined }],
+    ['an empty reason', { reason: '   ' }],
+    ['a reason that is too long', { reason: 'x'.repeat(201) }],
+  ])('refuses %s', (_name, overrides) => {
+    expect(isValid(adminUpdateSettingsSchema, body(overrides))).toBe(false);
+  });
+
+  test('the message of a value outside its interval names the key', () => {
+    const { error } = adminUpdateSettingsSchema.validate(body({ values: { drawCooldownSeconds: 31 } }));
+
+    expect(error.message).toContain('drawCooldownSeconds');
   });
 });

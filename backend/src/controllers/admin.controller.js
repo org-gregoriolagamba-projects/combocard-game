@@ -8,6 +8,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess } from "../utils/response.utils.js";
 import * as adminService from "../services/admin.service.js";
+import { getSettingsView, updateSettings as changeSettings } from "../services/settings.service.js";
 import { playerRoom } from "../sockets/index.js";
 
 const actorOf = (req) => ({ type: "player", id: req.auth.playerId });
@@ -167,4 +168,22 @@ export const getStats = asyncHandler(async (req, res) => {
  */
 export const listAuditLog = asyncHandler(async (req, res) => {
   sendSuccess(res, await adminService.listAudit(req.store, req.query, req.gameState));
+});
+
+/**
+ * The game settings, with who changed them last
+ * GET /api/admin/settings
+ */
+export const getSettings = asyncHandler(async (req, res) => {
+  sendSuccess(res, await getSettingsView(req.store, req.gameState, { admin: true }));
+});
+
+/**
+ * Change some of the game settings, with the reason
+ * PATCH /api/admin/settings
+ */
+export const updateSettings = asyncHandler(async (req, res) => {
+  const { values, reason } = req.body;
+  await changeSettings(req.store, req.gameState, { values, reason, actor: actorOf(req) });
+  sendSuccess(res, await getSettingsView(req.store, req.gameState, { admin: true }), "Settings updated");
 });
