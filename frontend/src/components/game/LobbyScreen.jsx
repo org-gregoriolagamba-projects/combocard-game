@@ -91,7 +91,12 @@ function LobbyScreen() {
     nomiInAttesa.length === 1
       ? `In attesa che ${nomiInAttesa[0]} confermi di aver letto le regole`
       : `In attesa che ${nomiInAttesa.slice(0, -1).join(", ")} e ${nomiInAttesa.at(-1)} confermino di aver letto le regole`;
-  const canStart = isCreator && game?.players?.length >= 2 && inAttesaDiRegole.length === 0;
+  // The players needed and the table size are the ones the game was created with. Without them (not expected)
+  // no number is invented: the creator can start as soon as there is somebody else, and the server decides
+  const minPlayers = game?.settings?.minPlayers;
+  const maxPlayers = game?.maxPlayers ?? game?.settings?.maxPlayers;
+  const enoughPlayers = minPlayers === undefined ? (game?.players?.length ?? 0) > 1 : (game?.players?.length ?? 0) >= minPlayers;
+  const canStart = isCreator && enoughPlayers && inAttesaDiRegole.length === 0;
 
   return (
     <div className="min-h-[100dvh] tavolo p-4">
@@ -142,7 +147,7 @@ function LobbyScreen() {
 
           <h2 className="titolo mb-3 flex items-center gap-2 text-xl text-testo">
             <Users size={22} aria-hidden="true" />
-            Giocatori ({game?.players?.length || 0}/{game?.maxPlayers || 10})
+            Giocatori ({game?.players?.length || 0}{maxPlayers ? `/${maxPlayers}` : ""})
           </h2>
           <ul className="mb-6 grid grid-cols-2 gap-x-4 md:grid-cols-3">
             {game?.players?.map((player, index) => (
@@ -188,7 +193,9 @@ function LobbyScreen() {
               ) : (
                 <div className="rounded-xl border-2 border-dashed border-linea p-4 text-center">
                   <p className="font-bold text-testo [text-wrap:balance]">In attesa di altri giocatori...</p>
-                  <p className="text-sm text-testo-2">Servono almeno 2 giocatori per iniziare</p>
+                  <p className="text-sm text-testo-2">
+                    {minPlayers ? `Servono almeno ${minPlayers} giocatori per iniziare` : "Non ci sono ancora abbastanza giocatori per iniziare"}
+                  </p>
                 </div>
               )}
             </div>
