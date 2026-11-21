@@ -73,16 +73,19 @@ test.describe('Game settings in the new game form @settings', () => {
 
 test.describe('A change of the settings is seen in the form @settings @admin', () => {
   test.skip(!E2E_DATABASE_URL, 'needs a server on PostgreSQL: set E2E_DATABASE_URL');
-  // The settings are shared by every test that runs against the same server: one after the other, and put back
-  test.describe.configure({ mode: 'serial' });
+  // The settings are shared by every test that runs against the same server, so this test runs in one project
+  // only (two projects in parallel would change and put back the same value on top of each other)
+  test.beforeEach(async ({}, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium', 'it changes the settings of the server: one project only');
+  });
 
   test('the new maximum of players is in the hint, the limit of the field and the first value', async ({ page, request }) => {
     const admin = await registerAdmin(request, API_URL);
     const player = await registerPlayer(request, API_URL, 'Giocatore');
-    const { values } = await settingsOf(request, player);
+    const { values, defaults } = await settingsOf(request, player);
     const patch = (maxPlayers, reason) =>
       request.patch(`${API_URL}/api/admin/settings`, { headers: admin.headers, data: { values: { maxPlayers }, reason } });
-    const changed = values.maxPlayers === 8 ? 7 : 8;
+    const changed = defaults.maxPlayers === 8 ? 7 : 8;
 
     try {
       expect((await patch(changed, 'e2e: il modulo legge i parametri')).status()).toBe(200);
@@ -95,8 +98,9 @@ test.describe('A change of the settings is seen in the form @settings @admin', (
       await expect(players).toHaveAccessibleDescription(new RegExp(`Da ${values.minPlayers} a ${changed} giocatori`));
       await expect(players).toHaveValue(String(changed));
     } finally {
-      await patch(values.maxPlayers, 'e2e: ripristino');
+      // Put back a value that is always the same, not the one read at the start (another run may have changed it)
+      await patch(defaults.maxPlayers, 'e2e: ripristino');
     }
-    expect((await settingsOf(request, player)).values.maxPlayers).toBe(values.maxPlayers);
+    expect((await settingsOf(request, player)).values.maxPlayers).toBe(defaults.maxPlayers);
   });
 });
