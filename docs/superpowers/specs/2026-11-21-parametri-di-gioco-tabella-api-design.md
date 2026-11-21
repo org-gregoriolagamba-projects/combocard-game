@@ -57,13 +57,13 @@ Metodi nuovi sia nello store in memoria sia in quello PostgreSQL:
 
 - `GET /api/settings`: ogni utente autenticato. Risponde con valori, limiti e predefiniti.
 - `GET /api/admin/settings`: stessa risposta, più `updatedAt` e `updatedBy`.
-- `PATCH /api/admin/settings`: solo admin. Corpo `{ valori: { ... }, motivo }`: almeno una chiave, `motivo` obbligatorio.
+- `PATCH /api/admin/settings`: solo admin. Corpo `{ values: { ... }, reason }`: almeno una chiave, `reason` obbligatorio (stesso nome delle altre route admin, per esempio le rettifiche dei crediti).
 
 Il corpo si valida con uno schema di `backend/src/validation/schemas.js`, applicato da `validate`. Le route admin stanno nel router che ha già `requireAuth` e `requireRole("admin")`. L'attore è sempre `req.auth`, mai il corpo. La `PATCH` ha un limite di richieste proprio, sul modello di `strictLimiter`.
 
 ## Uso nel server
 
-- `createGame`: quota predefinita e `maxPlayers` dai parametri correnti; copia in `game.settings`. Lo schema di creazione accetta `maxPlayers` fra il minimo e il massimo correnti e `requiredCredits` da 1 al limite. **Cambio di comportamento:** `requiredCredits: 0`, oggi trasformato nel predefinito, diventa `400`.
+- `createGame`: quota predefinita e `maxPlayers` dai parametri correnti; copia in `game.settings`. Lo schema di creazione, che è statico, usa i limiti assoluti (`maxPlayers` 2–20, `requiredCredits` 1–10.000); il controller controlla `maxPlayers` fra il minimo e il massimo correnti e risponde `400` con l'intervallo. **Cambio di comportamento:** `requiredCredits: 0`, oggi trasformato nel predefinito, diventa `400`.
 - `startGame`: `game.settings.minPlayers`. Ingresso: `game.settings.maxPlayers`.
 - Dichiarazione del Jolly: `jollyMaxDeclarations` e `jollyHoldSeconds` della partita.
 - **Attesa, modalità a turno:** `verificaAttesa` risponde `429` (non più `409`) e legge `game.settings.drawCooldownSeconds`; il timer che estrae da solo usa lo stesso valore.
@@ -84,7 +84,7 @@ Il corpo si valida con uno schema di `backend/src/validation/schemas.js`, applic
 - **Store, memoria e PostgreSQL (`combocard_test`):** predefiniti, modifica con audit prima e dopo, un `UPDATE` diretto fuori intervallo rifiutato dai `CHECK` anche aggirando lo schema, seconda riga impossibile, due modifiche simultanee che si sommano. I test PostgreSQL usano uno store senza nuovi tentativi (`NO_RETRY`).
 - **Route:** `401` senza token; `403` come `player` su `GET` e `PATCH` admin; `400` per fuori intervallo, chiave sconosciuta e motivo mancante; `200` per l'admin con audit visibile; il test che controlla che ogni route admin stia dietro `requireRole` resta valido.
 - **Partite:** una modifica non cambia le partite già create; la nuova porta la copia; una partita senza `settings` usa i valori di oggi; `requiredCredits: 0` dà `400`; `429` con `retryAfter` in modalità classica e a turno, con l'orologio simulato, e passa dopo l'attesa; la pausa del Jolly sposta `attesaFino`.
-- **End-to-end sull'API** (server in memoria): l'admin modifica un valore, una partita nuova lo usa, un `player` riceve `403`.
+- **End-to-end sull'API** (serve un server su PostgreSQL, `E2E_DATABASE_URL`: senza database nessuno può essere admin, e il test salta): l'admin modifica un valore, una partita nuova lo usa, un `player` riceve `403`.
 - I test esistenti sul `409` dell'attesa passano a `429`.
 - **Verifica finale:** `npm test` del backend con PostgreSQL attivo, tre esecuzioni consecutive dei test database, `npm run lint`.
 
