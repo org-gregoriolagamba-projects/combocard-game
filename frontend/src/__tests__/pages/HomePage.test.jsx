@@ -154,11 +154,18 @@ describe('HomePage', () => {
       carteEstratte: [{ valore: 'Re' }],
       players: [{ id: 'p1', name: 'Anna' }],
     };
-    global.fetch
-      .mockResolvedValueOnce(jsonResponse(200, {
+    // The answer depends on what is asked, not on the order: the settings are read at the same time
+    global.fetch.mockImplementation(async (url) => {
+      if (url.endsWith('/settings')) {
+        return jsonResponse(200, { data: { values: {}, limits: {}, defaults: {} } });
+      }
+      if (url.endsWith('/games/g1')) {
+        return jsonResponse(200, { data: game });
+      }
+      return jsonResponse(200, {
         data: { accessToken: 't1', player: { id: 'p1', name: 'Anna', credits: 0, currentGameId: 'g1' } },
-      }))
-      .mockResolvedValueOnce(jsonResponse(200, { data: game }));
+      });
+    });
     const { store } = renderWithProviders(<HomePage />);
 
     fill('Anna', 'x');

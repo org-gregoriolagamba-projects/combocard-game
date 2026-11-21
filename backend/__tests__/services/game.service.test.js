@@ -6,12 +6,14 @@
 
 import { jest } from '@jest/globals';
 import {
+  gameViewFor,
   verificaTris,
   verificaSequenza,
   verificaScopa,
   verificaNapola,
   verificaCombocardReale,
 } from '../../src/services/game.service.js';
+import { legacySettings } from '../../src/services/settings.service.js';
 
 describe('GameService', () => {
   // Helper to create a covered cards matrix
@@ -201,5 +203,36 @@ describe('GameService', () => {
       
       expect(verificaCombocardReale(cartella, coperte)).toBe(false);
     });
+  });
+});
+
+describe('gameViewFor: the settings of the game', () => {
+  const SETTINGS = { minPlayers: 3, maxPlayers: 6, requiredCredits: 150, jollyHoldSeconds: 45, jollyMaxDeclarations: 2, drawCooldownSeconds: 12 };
+  const stored = (extra = {}) => ({
+    id: 'g1',
+    status: 'playing',
+    mazzo: [{ valore: 'Asso', seme: 'Coppe' }],
+    players: [
+      { id: 'p1', name: 'Anna', gettoni: 0, cartella: [[{ valore: 'Re', seme: 'Spade' }]] },
+      { id: 'p2', name: 'Carlo', gettoni: 0, cartella: [[{ valore: 'Due', seme: 'Denari' }]] },
+    ],
+    ...extra,
+  });
+
+  test('the view carries the copy of the settings the game was created with', () => {
+    expect(gameViewFor(stored({ settings: SETTINGS }), 'p1').settings).toEqual(SETTINGS);
+  });
+
+  test('a game saved without settings gets the values of today, not the ones of the admin', () => {
+    expect(gameViewFor(stored(), 'p1').settings).toEqual(legacySettings());
+  });
+
+  test('the view still has no deck, no turn round, and no grid of the other players', () => {
+    const view = gameViewFor(stored({ settings: SETTINGS, codaEstrattori: ['p2'], ultimoEstrattore: 'p1' }), 'p1');
+
+    expect(view).not.toHaveProperty('mazzo');
+    expect(view).not.toHaveProperty('codaEstrattori');
+    expect(view).not.toHaveProperty('ultimoEstrattore');
+    expect(view.players.find((p) => p.id === 'p2')).not.toHaveProperty('cartella');
   });
 });

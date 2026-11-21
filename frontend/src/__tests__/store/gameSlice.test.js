@@ -1,6 +1,7 @@
 import gameReducer, {
   clearJollyInCorso,
   declareJolly,
+  drawCard,
   playJolly,
   setGame,
   setJollyInCorso,
@@ -100,5 +101,53 @@ describe('the turn of the draws in the game state', () => {
     const state = gameReducer({ ...mockGameState, game: null }, setTurno(turno));
 
     expect(state.game).toBeNull();
+  });
+});
+
+describe('the wait after a draw, from the settings of the game', () => {
+  const carta = { valore: 'Re', seme: 'Coppe' };
+  const withSettings = (settings, extra = {}) => ({
+    ...mockGameState,
+    game: { ...mockGameState.game, settings },
+    ...extra,
+  });
+
+  test.each([12, 5])('after a draw the wait starts from the %i seconds of the game, not from a fixed number', async (seconds) => {
+    gameService.drawCard.mockResolvedValue({ carta });
+    const store = createTestStore({ game: withSettings({ drawCooldownSeconds: seconds }) });
+
+    await store.dispatch(drawCard({ gameId: 'game-456' }));
+
+    expect(store.getState().game.drawCooldown).toBe(seconds);
+    expect(store.getState().game.ultimaCartaEstratta).toEqual(carta);
+  });
+
+  test('a game without settings gives no wait of its own: no number is invented', async () => {
+    gameService.drawCard.mockResolvedValue({ carta });
+    const store = createTestStore({ game: withSettings(undefined) });
+
+    await store.dispatch(drawCard({ gameId: 'game-456' }));
+
+    expect(store.getState().game.drawCooldown).toBe(0);
+  });
+
+  test('a 429 with the seconds left starts the wait from them, and the message is the one of the error', async () => {
+    const tooSoon = Object.assign(new Error("Attendi 4 secondi prima di estrarre un'altra carta"), { status: 429, retryAfter: 4 });
+    gameService.drawCard.mockRejectedValue(tooSoon);
+    const store = createTestStore({ game: withSettings({ drawCooldownSeconds: 8 }, { drawCooldown: 0 }) });
+
+    const result = await store.dispatch(drawCard({ gameId: 'game-456' }));
+
+    expect(result.payload).toBe("Attendi 4 secondi prima di estrarre un'altra carta");
+    expect(store.getState().game.drawCooldown).toBe(4);
+  });
+
+  test('a refusal without the seconds leaves the wait as it was: the time is not invented', async () => {
+    gameService.drawCard.mockRejectedValue(Object.assign(new Error('Le carte sono finite'), { status: 400 }));
+    const store = createTestStore({ game: withSettings({ drawCooldownSeconds: 8 }, { drawCooldown: 2 }) });
+
+    await store.dispatch(drawCard({ gameId: 'game-456' }));
+
+    expect(store.getState().game.drawCooldown).toBe(2);
   });
 });

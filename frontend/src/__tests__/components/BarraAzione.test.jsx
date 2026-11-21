@@ -298,4 +298,53 @@ describe('BarraAzione', () => {
       expect(screen.queryByTestId('conto-turno')).not.toBeInTheDocument();
     });
   });
+
+  describe('the bar of the wait, with the total of the game', () => {
+    const barWidth = (container) => container.querySelector('button span[aria-hidden="true"][style]')?.style.width;
+
+    test('the bar is the share of the wait that is left, out of the total of the game', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={6} attesaTotale={12} />);
+
+      expect(barWidth(container)).toBe('50%');
+    });
+
+    test('another total gives another share', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={3} attesaTotale={12} />);
+
+      expect(barWidth(container)).toBe('25%');
+    });
+
+    test('without the total nothing breaks and the bar is empty: no total is invented', () => {
+      const { container } = render(<BarraAzione {...base} drawCooldown={6} />);
+
+      expect(barWidth(container)).toBe('0%');
+      expect(screen.getByRole('button', { name: /Attendi 6s/ })).toBeDisabled();
+    });
+  });
+
+  describe('the count of the jolly choice, with the time of the game', () => {
+    const NOW = new Date('2026-01-01T10:00:00Z').getTime();
+
+    beforeEach(() => vi.useFakeTimers({ now: NOW }));
+    afterEach(() => vi.useRealTimers());
+
+    test('the others see who is choosing and the seconds left, up to the time of the game', () => {
+      render(<BarraAzione {...base} puoEstrarre={false} pausa={{ nome: 'Carlo', scadenza: NOW + 100_000, mia: false }} durataJolly={45} />);
+
+      expect(screen.getByText(/Carlo sta scegliendo il Jolly/)).toHaveTextContent('Carlo sta scegliendo il Jolly: 45 s');
+    });
+
+    test('the player who chooses sees the same cap', () => {
+      // the own pause is told inside the jolly mode, where the player chooses the card
+      render(<BarraAzione {...base} puoEstrarre={false} jollyMode="tris" pausa={{ nome: 'Anna', scadenza: NOW + 100_000, mia: true }} durataJolly={45} />);
+
+      expect(screen.getByText(/Le estrazioni sono ferme/)).toHaveTextContent('hai ancora 45 s per scegliere');
+    });
+
+    test('without the time of the game the count has no cap', () => {
+      render(<BarraAzione {...base} puoEstrarre={false} pausa={{ nome: 'Carlo', scadenza: NOW + 100_000, mia: false }} />);
+
+      expect(screen.getByText(/Carlo sta scegliendo il Jolly/)).toHaveTextContent('Carlo sta scegliendo il Jolly: 100 s');
+    });
+  });
 });

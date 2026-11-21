@@ -7,13 +7,17 @@
 import { authService, gameService } from "../services";
 import { clearGame, resumeGame, setUltimaCartaEstratta } from "./slices/gameSlice";
 import { clearPlayer } from "./slices/playerSlice";
+import { fetchSettings } from "./slices/settingsSlice";
 import { addToast, setScreen } from "./slices/uiSlice";
 
 /**
- * Go back to the game in progress, if there is one, otherwise to the hall
+ * Go back to the game in progress, if there is one, otherwise to the hall. The game settings are read
+ * at the same time, without waiting for them: if they cannot be read the screens say so and offer to try again.
  * @param {Object} player - Player of the session
  */
 export const enterGameOrHall = (player) => async (dispatch) => {
+  dispatch(fetchSettings());
+
   if (player.currentGameId) {
     try {
       const game = await gameService.getGame(player.currentGameId);

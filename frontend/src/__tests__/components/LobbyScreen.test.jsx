@@ -154,4 +154,50 @@ describe('LobbyScreen', () => {
     renderWithProviders(<LobbyScreen />, { preloadedState: state() });
     expect(screen.getByText(/Le carte le estrae il creatore/)).toBeInTheDocument();
   });
+  describe('the players needed come from the settings of the game', () => {
+    const SETTINGS = { minPlayers: 3, maxPlayers: 6, requiredCredits: 50, jollyHoldSeconds: 30, jollyMaxDeclarations: 3, drawCooldownSeconds: 8 };
+    const stateWith = (gameOverrides) => {
+      const base = state({ asCreator: false });
+      // Anna (p1) creates: she is the first of the list
+      base.game.game = { ...base.game.game, players: [{ id: 'p1', name: 'Anna' }, { id: 'p2', name: 'Bruno' }], ...gameOverrides };
+      return base;
+    };
+    const threePlayers = [{ id: 'p1', name: 'Anna' }, { id: 'p2', name: 'Bruno' }, { id: 'p3', name: 'Carla' }];
+
+    test('says how many players are needed, and the start waits for them', () => {
+      renderWithProviders(<LobbyScreen />, { preloadedState: stateWith({ settings: SETTINGS }) });
+
+      expect(screen.getByText('Servono almeno 3 giocatori per iniziare')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Inizia Partita/ })).not.toBeInTheDocument();
+    });
+
+    test('with enough players the creator can start', () => {
+      renderWithProviders(<LobbyScreen />, { preloadedState: stateWith({ settings: SETTINGS, players: threePlayers }) });
+
+      expect(screen.getByRole('button', { name: /Inizia Partita/ })).toBeInTheDocument();
+    });
+
+    test('the counter uses the maximum of the game', () => {
+      renderWithProviders(<LobbyScreen />, { preloadedState: stateWith({ settings: SETTINGS, maxPlayers: 6 }) });
+
+      expect(screen.getByRole('heading', { name: /Giocatori \(2\/6\)/ })).toBeInTheDocument();
+    });
+
+    test('without the settings nor the maximum the lobby is drawn with no number invented', () => {
+      const preloaded = stateWith({ maxPlayers: undefined });
+      renderWithProviders(<LobbyScreen />, { preloadedState: preloaded });
+
+      expect(screen.getByRole('heading', { name: /Giocatori \(2\)/ })).toBeInTheDocument();
+      expect(screen.queryByText(/Servono almeno/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\/10/)).not.toBeInTheDocument();
+    });
+
+    test('without the settings a creator alone sees that more players are needed, with no number', () => {
+      const preloaded = stateWith({ maxPlayers: undefined, players: [{ id: 'p1', name: 'Anna' }] });
+      renderWithProviders(<LobbyScreen />, { preloadedState: preloaded });
+
+      expect(screen.getByText('Non ci sono ancora abbastanza giocatori per iniziare')).toBeInTheDocument();
+      expect(screen.queryByText(/Servono almeno/)).not.toBeInTheDocument();
+    });
+  });
 });

@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { History, Plus, ShieldCheck } from "lucide-react";
 import { buyCredits, logout } from "../../store/slices/playerSlice";
 import { fetchLobby, createGame, joinGame, setGame, clearGame } from "../../store/slices/gameSlice";
+import { fetchSettings } from "../../store/slices/settingsSlice";
 import { setScreen, addToast } from "../../store/slices/uiSlice";
 import { gameService } from "../../services";
 import { Modal, Button, Input, Footer } from "../common";
@@ -18,10 +19,16 @@ import DeleteAccountDialog from "./DeleteAccountDialog";
 // The number typed in a field, NaN when it is empty or is not a whole number
 const numero = (testo) => (/^\d+$/.test(testo) ? parseInt(testo, 10) : NaN);
 
+// The fee a new game starts from: the one of the server, or what the player has if it is less, never below the minimum
+const creditiIniziali = (settings, limits, playerCredits) =>
+  String(Math.max(limits.requiredCredits.min, Math.min(settings.requiredCredits, playerCredits)));
+
 function HallScreen() {
   const dispatch = useDispatch();
   const { id: playerId, name: playerName, credits: playerCredits, role } = useSelector((state) => state.player);
   const { lobbies } = useSelector((state) => state.game);
+  // The limits of a game are the ones of the server: nothing is invented while they are not there
+  const { values: settings, limits, status: settingsStatus, error: settingsError } = useSelector((state) => state.settings);
   
   // Local state
   const [showCassa, setShowCassa] = useState(false);
@@ -30,16 +37,16 @@ function HallScreen() {
   const [creditiTesto, setCreditiTesto] = useState("");
   const creditiDaAcquistare = numero(creditiTesto) || 0;
   const [showCreaPartita, setShowCreaPartita] = useState(false);
-  // Ask what the player can afford, up to the usual 100
-  const [creditiRichiestiTesto, setCreditiRichiestiTesto] = useState(
-    String(Math.max(10, Math.min(100, playerCredits)) || 100)
-  );
+  // The fee and the players of a new game start from the settings of the server, as soon as they are there
+  const [creditiRichiestiTesto, setCreditiRichiestiTesto] = useState("");
   const creditiRichiesti = numero(creditiRichiestiTesto);
   const [isPrivate, setIsPrivate] = useState(false);
   const [soundsEnabled, setSoundsEnabled] = useState(true);
   // Who draws the cards: every player in turn (default) or only the creator, as in the classic game
   const [estrazione, setEstrazione] = useState("tutti");
-  const [maxPlayersTesto, setMaxPlayersTesto] = useState("6");
+  const [maxPlayersTesto, setMaxPlayersTesto] = useState("");
+  // A field the user has written in is not given a new starting value when the settings change
+  const toccati = useRef({ crediti: false, giocatori: false });
   const maxPlayers = numero(maxPlayersTesto);
   const [showJoinPrivate, setShowJoinPrivate] = useState(false);
   const [privateGameCode, setPrivateGameCode] = useState("");
@@ -47,6 +54,30 @@ function HallScreen() {
   const [privateError, setPrivateError] = useState(null);
   const [showDelete, setShowDelete] = useState(false);
   const inFlight = useRef(false);
+
+  // The settings are read when the hall opens, and again when the form opens (an admin may have changed them)
+  useEffect(() => {
+    dispatch(fetchSettings());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (!showCreaPartita || !settings || !limits) {
+      return;
+    }
+    if (!toccati.current.crediti) {
+      setCreditiRichiestiTesto(creditiIniziali(settings, limits, playerCredits));
+    }
+    if (!toccati.current.giocatori) {
+      setMaxPlayersTesto(String(settings.maxPlayers));
+    }
+  }, [showCreaPartita, settings, limits, playerCredits]);
+
+  const handleApriCreaPartita = () => {
+    toccati.current = { crediti: false, giocatori: false };
+    setCreateErrors({});
+    dispatch(fetchSettings());
+    setShowCreaPartita(true);
+  };
 
   // Load lobbies on mount and periodically
   useEffect(() => {
@@ -90,16 +121,21 @@ function HallScreen() {
   const validaCreaPartita = () => {
     const errors = {};
 
+    if (!settings || !limits) {
+      return { settings: "I parametri di gioco non sono ancora disponibili" };
+    }
+
+    const { min: creditiMin, max: creditiMax } = limits.requiredCredits;
     if (Number.isNaN(creditiRichiesti)) {
       errors.creditiRichiesti = "Scrivi quanti crediti servono per entrare";
-    } else if (creditiRichiesti < 10) {
-      errors.creditiRichiesti = "Almeno 10 crediti";
+    } else if (creditiRichiesti < creditiMin || creditiRichiesti > creditiMax) {
+      errors.creditiRichiesti = `Da ${creditiMin} a ${creditiMax} crediti`;
     } else if (playerCredits < creditiRichiesti) {
       errors.creditiRichiesti = `Hai ${playerCredits} crediti: aggiungine con «Prendi crediti» o chiedi meno crediti`;
     }
 
-    if (Number.isNaN(maxPlayers) || maxPlayers < 2 || maxPlayers > 10) {
-      errors.maxPlayers = "Da 2 a 10 giocatori";
+    if (Number.isNaN(maxPlayers) || maxPlayers < settings.minPlayers || maxPlayers > settings.maxPlayers) {
+      errors.maxPlayers = `Da ${settings.minPlayers} a ${settings.maxPlayers} giocatori`;
     }
 
     return errors;
@@ -126,7 +162,6 @@ function HallScreen() {
       setIsPrivate(false);
       setSoundsEnabled(true);
       setEstrazione("tutti");
-      setMaxPlayersTesto("6");
 
       // Automatically join the created game
       await handleUniscitiPartita(result.gameId);
@@ -217,7 +252,7 @@ function HallScreen() {
 
           <div className="mt-4 grid grid-cols-1 gap-3 border-t-2 border-linea pt-4 sm:grid-cols-2">
             <button
-              onClick={() => setShowCreaPartita(true)}
+              onClick={handleApriCreaPartita}
               className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-oro px-6 py-3 font-bold text-inchiostro-900 shadow-md transition hover:bg-oro-dark"
             >
               <Plus size={22} aria-hidden="true" />
@@ -369,18 +404,34 @@ function HallScreen() {
         title="Crea nuova partita"
       >
         <div className="space-y-4">
+          {!settings && (
+            <div role={settingsStatus === "error" ? "alert" : "status"} className="space-y-2 rounded-xl border border-linea-forte p-3 text-sm text-testo">
+              {settingsStatus === "error" ? (
+                <>
+                  <p>{settingsError}</p>
+                  <Button variant="secondary" size="sm" onClick={() => dispatch(fetchSettings())}>
+                    Riprova
+                  </Button>
+                </>
+              ) : (
+                <p>Carico i parametri di gioco…</p>
+              )}
+            </div>
+          )}
           <Input
             label="Crediti richiesti per partecipare"
             type="number"
             inputMode="numeric"
             value={creditiRichiestiTesto}
             onChange={(e) => {
+              toccati.current.crediti = true;
               setCreditiRichiestiTesto(e.target.value);
               setCreateErrors((errors) => ({ ...errors, creditiRichiesti: undefined }));
             }}
             error={createErrors.creditiRichiesti}
-            hint="Ogni giocatore li paga per entrare e vanno nel montepremi."
-            min="10"
+            hint={`${limits ? `Da ${limits.requiredCredits.min} a ${limits.requiredCredits.max} crediti. ` : ""}Ogni giocatore li paga per entrare e vanno nel montepremi.`}
+            min={limits?.requiredCredits.min}
+            max={limits?.requiredCredits.max}
           />
           <Input
             label="Numero massimo giocatori"
@@ -388,13 +439,14 @@ function HallScreen() {
             inputMode="numeric"
             value={maxPlayersTesto}
             onChange={(e) => {
+              toccati.current.giocatori = true;
               setMaxPlayersTesto(e.target.value);
               setCreateErrors((errors) => ({ ...errors, maxPlayers: undefined }));
             }}
             error={createErrors.maxPlayers}
-            hint="Da 2 a 10. Se la partita si riempie, parte da sola."
-            min="2"
-            max="10"
+            hint={`${settings ? `Da ${settings.minPlayers} a ${settings.maxPlayers} giocatori. ` : ""}Se la partita si riempie, parte da sola.`}
+            min={settings?.minPlayers}
+            max={settings?.maxPlayers}
           />
           <div className="flex items-center gap-2">
             <input
@@ -446,7 +498,7 @@ function HallScreen() {
           <p id="soundsEnabled-hint" className="-mt-2 text-xs text-testo-2">
             Un suono a ogni carta, collezione e Jolly. Ognuno può comunque silenziarli per sé.
           </p>
-          <Button onClick={handleCreaPartita} className="w-full">
+          <Button onClick={handleCreaPartita} disabled={!settings} className="w-full">
             Crea Partita
           </Button>
         </div>

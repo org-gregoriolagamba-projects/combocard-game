@@ -117,7 +117,11 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
 
     if (!response.ok) {
       // The status lets a screen tell a refusal (403) from a failure
-      throw Object.assign(new Error(translateServerError(data.message || data.error)), { status: response.status });
+      // retryAfter: the seconds to wait, when the request came too soon (429)
+      throw Object.assign(new Error(translateServerError(data.message || data.error)), {
+        status: response.status,
+        ...(typeof data.retryAfter === "number" ? { retryAfter: data.retryAfter } : {}),
+      });
     }
 
     return data;

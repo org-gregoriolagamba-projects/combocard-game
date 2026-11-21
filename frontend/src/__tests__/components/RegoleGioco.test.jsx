@@ -18,9 +18,9 @@ describe('RegoleGioco', () => {
   });
 
   test('says how a game goes: who draws, how often, and that the sheet covers by itself', () => {
-    render(<RegoleGioco game={game} />);
+    render(<RegoleGioco game={game} parametri={{ minPlayers: 2, maxPlayers: 10, drawCooldownSeconds: 8 }} />);
 
-    expect(screen.getByText(/Estrae una carta alla volta/)).toHaveTextContent('8 secondi');
+    expect(screen.getByText(/Estrae una carta alla volta/)).toHaveTextContent('almeno 8 secondi');
     expect(screen.getByText(/si copre da sola con un sigillo/)).toBeInTheDocument();
     expect(screen.getByText(/formano il montepremi/)).toBeInTheDocument();
   });
@@ -60,5 +60,49 @@ describe('RegoleGioco', () => {
     expect(screen.getByText(/a turno tutti i giocatori/)).toBeInTheDocument();
     expect(screen.getByText(/cartellino giallo/)).toBeInTheDocument();
     expect(screen.getByText(/cartellino rosso/)).toBeInTheDocument();
+  });
+
+  describe('the numbers come from the settings, never from the text', () => {
+    const settings = { minPlayers: 3, maxPlayers: 8, drawCooldownSeconds: 12 };
+    const players = () => screen.getByText(/Si gioca|Il numero di giocatori/);
+    const wait = () => screen.getByText(/Estrae una carta alla volta/);
+
+    test('with the settings given, the players and the wait are the ones of the server', () => {
+      render(<RegoleGioco game={game} parametri={settings} />);
+
+      expect(players()).toHaveTextContent('Si gioca da 3 a 8.');
+      expect(wait()).toHaveTextContent('almeno 12 secondi tra una e l\'altra');
+      expect(document.body).not.toHaveTextContent('da 2 a 10');
+      expect(document.body).not.toHaveTextContent('almeno 8 secondi');
+    });
+
+    test('in a game the settings of the game are used', () => {
+      render(<RegoleGioco game={{ ...game, settings: { ...settings, maxPlayers: 6 } }} />);
+
+      expect(players()).toHaveTextContent('Si gioca da 3 a 6.');
+      expect(wait()).toHaveTextContent('almeno 12 secondi');
+    });
+
+    test('the settings given win over the ones of the game', () => {
+      render(<RegoleGioco game={{ ...game, settings: { ...settings, maxPlayers: 6 } }} parametri={{ ...settings, maxPlayers: 9 }} />);
+
+      expect(players()).toHaveTextContent('Si gioca da 3 a 9.');
+    });
+
+    test('without the settings the sentences are read with no number', () => {
+      render(<RegoleGioco game={game} />);
+
+      expect(players()).toHaveTextContent('Il numero di giocatori lo decide chi gestisce il gioco.');
+      expect(wait()).toHaveTextContent("con una breve attesa tra una e l'altra");
+      expect(players().textContent).not.toMatch(/\d/);
+      expect(wait().textContent).not.toMatch(/\d+ secondi/);
+    });
+
+    test('each number is used only if it is there', () => {
+      render(<RegoleGioco game={game} parametri={{ drawCooldownSeconds: 12 }} />);
+
+      expect(players()).toHaveTextContent('Il numero di giocatori lo decide chi gestisce il gioco.');
+      expect(wait()).toHaveTextContent('almeno 12 secondi');
+    });
   });
 });

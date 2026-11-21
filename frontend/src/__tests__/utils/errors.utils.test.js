@@ -55,6 +55,21 @@ describe('translateServerError', () => {
       .toBe('Puoi aggiungere al massimo 10000 crediti per volta');
   });
 
+  test.each([
+    ['Wait 5 seconds before drawing', "Attendi 5 secondi prima di estrarre un'altra carta"],
+    ['Wait 1 seconds before drawing', "Attendi 1 secondi prima di estrarre un'altra carta"],
+    ['Wait 30 seconds before drawing', "Attendi 30 secondi prima di estrarre un'altra carta"],
+  ])('the wait between draws: %s', (message, expected) => {
+    expect(translateServerError(message)).toBe(expected);
+  });
+
+  test.each([
+    ['maxPlayers must be from 2 to 8', 'Da 2 a 8 giocatori'],
+    ['maxPlayers must be from 3 to 20', 'Da 3 a 20 giocatori'],
+  ])('the range of the players of a game: %s', (message, expected) => {
+    expect(translateServerError(message)).toBe(expected);
+  });
+
   test('explains how to recover from the jolly that cannot be used', () => {
     expect(translateServerError('Jolly cannot complete this collection or card already exists in grid'))
       .toBe("Il Jolly non può completare questa collezione con quella carta. Scegli un'altra carta o un'altra collezione.");

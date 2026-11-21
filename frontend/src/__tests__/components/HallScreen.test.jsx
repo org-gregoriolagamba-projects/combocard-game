@@ -2,21 +2,38 @@ import React from 'react';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { HallScreen } from '../../components/game';
-import { renderWithProviders } from '../test-utils';
+import { renderWithProviders, readySettings } from '../test-utils';
+import { fetchSettings } from '../../store/slices/settingsSlice';
 import * as gameService from '../../services/gameService';
 import * as playerService from '../../services/playerService';
+import * as settingsService from '../../services/settingsService';
 
 vi.mock('../../services/gameService');
 vi.mock('../../services/playerService');
+vi.mock('../../services/settingsService');
 
-const state = (credits = 100) => ({
+const state = (credits = 100, settings = readySettings) => ({
   player: { id: 'p1', name: 'Anna', credits },
   game: { lobbies: [], currentGameId: null, game: null, currentPlayer: null },
+  settings,
 });
+
+// The settings the server gives, as the store keeps them and as the service answers
+const noSettings = { values: null, limits: null, status: 'idle', error: null, requestId: null };
+const serve = (values = {}, limits = {}) => {
+  const settings = {
+    ...readySettings,
+    values: { ...readySettings.values, ...values },
+    limits: { ...readySettings.limits, ...limits },
+  };
+  settingsService.getSettings.mockResolvedValue({ values: settings.values, limits: settings.limits, defaults: readySettings.values });
+  return settings;
+};
 
 describe('HallScreen', () => {
   beforeEach(() => {
     gameService.getLobby.mockResolvedValue([]);
+    serve();
   });
 
   describe('the dialog to take credits', () => {
@@ -384,5 +401,140 @@ describe('HallScreen: the entry to the admin area', () => {
 
     expect(screen.queryByRole('button', { name: 'Amministrazione' })).not.toBeInTheDocument();
     expect(screen.queryByText(/amministrazione/i)).not.toBeInTheDocument();
+  });
+  describe('the limits of the new game come from the server', () => {
+    const openCreate = () => fireEvent.click(screen.getByRole('button', { name: /Crea Nuova Partita/ }));
+    const type = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    const PLAYERS = 'Numero massimo giocatori';
+    const CREDITS = 'Crediti richiesti per partecipare';
+
+    test('the settings are read when the hall opens', async () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+
+      await waitFor(() => expect(settingsService.getSettings).toHaveBeenCalled());
+    });
+
+    test('the players field has the interval of the server, says it, and starts from the maximum', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state(500, serve({ minPlayers: 3, maxPlayers: 8 })) });
+
+      openCreate();
+
+      const field = screen.getByLabelText(PLAYERS);
+      expect(field).toHaveAttribute('min', '3');
+      expect(field).toHaveAttribute('max', '8');
+      expect(field).toHaveAccessibleDescription(/Da 3 a 8 giocatori/);
+      expect(field).toHaveValue(8);
+    });
+
+    test('a number of players outside the interval of the server is explained with that interval', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state(500, serve({ minPlayers: 3, maxPlayers: 8 })) });
+      openCreate();
+
+      type(PLAYERS, '9');
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(screen.getByLabelText(PLAYERS)).toHaveAccessibleDescription('Da 3 a 8 giocatori');
+      expect(gameService.createGame).not.toHaveBeenCalled();
+    });
+
+    test('the fee starts from the one of the server, or from what the player has, and never below the minimum', () => {
+      const { unmount } = renderWithProviders(<HallScreen />, { preloadedState: state(500, serve({ requiredCredits: 150 })) });
+      openCreate();
+      expect(screen.getByLabelText(CREDITS)).toHaveValue(150);
+      unmount();
+
+      const poor = renderWithProviders(<HallScreen />, { preloadedState: state(30, serve({ requiredCredits: 150 })) });
+      openCreate();
+      expect(screen.getByLabelText(CREDITS)).toHaveValue(30);
+      poor.unmount();
+
+      renderWithProviders(<HallScreen />, { preloadedState: state(0, serve({ requiredCredits: 150 })) });
+      openCreate();
+      expect(screen.getByLabelText(CREDITS)).toHaveValue(1);
+    });
+
+    test('the fee field has the limits of the server, and says them', () => {
+      renderWithProviders(<HallScreen />, { preloadedState: state() });
+
+      openCreate();
+
+      expect(screen.getByLabelText(CREDITS)).toHaveAttribute('min', '1');
+      expect(screen.getByLabelText(CREDITS)).toHaveAttribute('max', '10000');
+      expect(screen.getByLabelText(CREDITS)).toHaveAccessibleDescription(/Da 1 a 10000 crediti/);
+    });
+
+    test('a fee of 5 is accepted and sent: the old minimum of 10 does not exist', () => {
+      gameService.createGame.mockResolvedValue({ gameId: 'g1' });
+      renderWithProviders(<HallScreen />, { preloadedState: state(100) });
+      openCreate();
+
+      type(CREDITS, '5');
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(gameService.createGame).toHaveBeenCalledWith(expect.objectContaining({ requiredCredits: 5 }));
+    });
+
+    test.each(['0', '10001'])('a fee of %s is explained with the limits of the server, and nothing is sent', (value) => {
+      renderWithProviders(<HallScreen />, { preloadedState: state(20000) });
+      openCreate();
+
+      type(CREDITS, value);
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+
+      expect(screen.getByLabelText(CREDITS)).toHaveAccessibleDescription('Da 1 a 10000 crediti');
+      expect(gameService.createGame).not.toHaveBeenCalled();
+    });
+
+    test('while the settings are being read there is no number in the fields and the game cannot be created', () => {
+      settingsService.getSettings.mockReturnValue(new Promise(() => {}));
+      renderWithProviders(<HallScreen />, { preloadedState: state(100, { ...noSettings, status: 'loading' }) });
+
+      openCreate();
+
+      expect(screen.getByLabelText(CREDITS)).toHaveDisplayValue('');
+      expect(screen.getByLabelText(PLAYERS)).toHaveDisplayValue('');
+      expect(screen.getByRole('button', { name: /Crea Partita/ })).toBeDisabled();
+    });
+
+    test('if the settings cannot be read the form says so and "Riprova" reads them again, with no invented number', async () => {
+      settingsService.getSettings.mockRejectedValue(new Error('Impossibile contattare il server'));
+      renderWithProviders(<HallScreen />, { preloadedState: state(100, noSettings) });
+      openCreate();
+
+      expect(await screen.findByText('Impossibile contattare il server')).toBeInTheDocument();
+      expect(screen.getByLabelText(CREDITS)).toHaveDisplayValue('');
+      expect(screen.getByRole('button', { name: /Crea Partita/ })).toBeDisabled();
+
+      serve({ maxPlayers: 6 });
+      fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+
+      await waitFor(() => expect(screen.getByLabelText(PLAYERS)).toHaveValue(6));
+      expect(screen.getByRole('button', { name: /Crea Partita/ })).toBeEnabled();
+      expect(screen.queryByText('Impossibile contattare il server')).not.toBeInTheDocument();
+    });
+
+    test('opening the form reads the settings again: a change of the admin is seen without reloading', async () => {
+      serve({ maxPlayers: 8 });
+      renderWithProviders(<HallScreen />, { preloadedState: state(100, { ...readySettings }) });
+
+      openCreate();
+
+      await waitFor(() => expect(screen.getByLabelText(PLAYERS)).toHaveAttribute('max', '8'));
+    });
+
+    test('values that change while the form is open: what the user wrote stays, and the sending checks the new limits', async () => {
+      const { store } = renderWithProviders(<HallScreen />, { preloadedState: state(500) });
+      openCreate();
+      type(PLAYERS, '7');
+
+      serve({ maxPlayers: 6 });
+      store.dispatch(fetchSettings());
+      await waitFor(() => expect(screen.getByLabelText(PLAYERS)).toHaveAttribute('max', '6'));
+
+      expect(screen.getByLabelText(PLAYERS)).toHaveDisplayValue('7');
+      fireEvent.click(screen.getByRole('button', { name: /Crea Partita/ }));
+      expect(screen.getByLabelText(PLAYERS)).toHaveAccessibleDescription('Da 2 a 6 giocatori');
+      expect(gameService.createGame).not.toHaveBeenCalled();
+    });
   });
 });
