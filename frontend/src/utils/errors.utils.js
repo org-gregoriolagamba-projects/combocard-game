@@ -6,6 +6,8 @@
  * player in English, it becomes a generic one that says to try again.
  */
 
+import { etichettaParametro } from "../config/parametri";
+
 const GENERIC = "Qualcosa non ha funzionato: riprova tra poco";
 const NETWORK = "Impossibile contattare il server: controlla la connessione e riprova";
 const INVALID_DATA = "I dati inseriti non sono validi";
@@ -68,6 +70,10 @@ const EXACT = {
   "Too many requests, please try again later.": "Troppe richieste: riprova tra poco",
   "Too many requests from this IP, please try again later.": "Troppe richieste: riprova tra poco",
   "Could not renew the session": "Non riesco a rinnovare la sessione: riprova tra poco",
+  // The game settings of the admin area
+  "Storage temporarily unavailable, please try again": "Non sono riuscito a salvare: riprova tra poco",
+  "Too many changes to the settings, please try again later.": "Troppe modifiche in poco tempo: riprova fra un minuto",
+  "maxPlayers cannot be below minPlayers": "I giocatori massimi non possono essere meno dei minimi",
 };
 
 // Messages that carry a number
@@ -80,6 +86,11 @@ const PATTERNS = [
   [/"username" length must be at least (\d+)/, (m) => `Il nome utente deve avere almeno ${m[1]} caratteri`],
   [/"password" length must be at least (\d+)/, (m) => `La password deve avere almeno ${m[1]} caratteri`],
   [/"amount" must be/, () => "Inserisci un importo valido"],
+  // The settings: the key is named with its label (the server joins several messages: the first one known counts)
+  [/^(\w+) must be a whole number from (\d+) to (\d+)$/, (m) => `${etichettaParametro(m[1])}: da ${m[2]} a ${m[3]}`],
+  [/"values\.(\w+)" must be less than or equal to (\d+)/, (m) => `${etichettaParametro(m[1])}: al massimo ${m[2]}`],
+  [/"values\.(\w+)" must be greater than or equal to (\d+)/, (m) => `${etichettaParametro(m[1])}: almeno ${m[2]}`],
+  [/"values\.(\w+)" must be (?:an integer|a number)/, (m) => `${etichettaParametro(m[1])}: scrivi un numero intero`],
 ];
 
 const NETWORK_FAILURE = /failed to fetch|load failed|networkerror|network request failed/i;
