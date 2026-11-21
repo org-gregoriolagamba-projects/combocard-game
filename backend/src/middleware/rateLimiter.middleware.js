@@ -46,6 +46,21 @@ export const strictLimiter = rateLimit({
 });
 
 /**
+ * Limit on the changes of the game settings: the admin changes them rarely
+ */
+export const settingsLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  limit: 10,
+  skip: () => config.nodeEnv === "test" || config.rateLimitDisabled,
+  message: {
+    status: "error",
+    message: "Too many changes to the settings, please try again later.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * Limit on login attempts: only failed ones count, per IP address
  */
 export const loginLimiter = rateLimit({

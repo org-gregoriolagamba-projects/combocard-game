@@ -24,7 +24,8 @@ Each player has one Jolly card that can be converted to any card needed to compl
 - **Private games** with join-by-code support
 - **Max players** per game (2–10) with **auto-start** when the table is full
 - **Drawing by turns**: the creator chooses who draws, every player in turn (default in the app) or only the creator. The player on turn has 60 seconds, with a countdown for everybody and beeps in the last five seconds; if the time runs out the card is drawn automatically and the player gets a yellow card, then a red card (no more draws until the end of the game)
-- **Draw cooldown**: 8-second delay between card draws
+- **Draw cooldown**: 8-second delay between card draws, kept by the server (a draw too soon gets a 429)
+- **Game settings** (players, entry fee, Jolly, wait between draws) changeable by an admin, with a reason and an audit trail; each game keeps the settings it was created with
 - **Sounds**: the creator can switch the game sounds on or off, and each player can mute them
 - **Zoom** of the cards of the sheet and of the drawn ones, and an **history and personal statistics** page for each player
 - **Remaining prize distribution**: undistributed prizes are split evenly at game end
@@ -163,6 +164,11 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | POST | `/api/games/:gameId/jolly` | Use the jolly card (ends the pause) |
 | POST | `/api/games/:gameId/leave` | Leave a game |
 
+### Settings Routes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/settings` | The game settings in force, with their limits and defaults |
+
 ### Personal Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -170,7 +176,7 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 | GET | `/api/me/stats` | Your own statistics (needs the database) |
 
 ### Admin Routes
-Under `/api/admin`, for accounts with the admin role only: users (list, edit, adjust credits, suspend, close sessions, reset password, delete), games (list, cancel), status, statistics and the audit log. See [docs/AUTH.md](docs/AUTH.md).
+Under `/api/admin`, for accounts with the admin role only: users (list, edit, adjust credits, suspend, close sessions, reset password, delete), games (list, cancel), game settings (read, change), status, statistics and the audit log. See [docs/AUTH.md](docs/AUTH.md).
 
 ### Health Routes
 | Method | Endpoint | Description |

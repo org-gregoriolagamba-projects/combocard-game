@@ -12,7 +12,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { runMigrations } from '../../src/db/migrate.js';
-import { createPostgresStore, INSUFFICIENT_CREDITS, INVALID_ROLE, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
+import { createPostgresStore, INSUFFICIENT_CREDITS, INVALID_ROLE, INVALID_SETTINGS, LAST_ADMIN, USERNAME_TAKEN } from '../../src/db/store.js';
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const url = process.env.TEST_DATABASE_URL;
@@ -67,7 +67,7 @@ describeWithDb('PostgreSQL store', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'DROP TABLE IF EXISTS audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+      'DROP TABLE IF EXISTS game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
     );
     await runMigrations(pool);
     store = createPostgresStore(pool, NO_RETRY);
@@ -447,7 +447,7 @@ describeWithDb('PostgreSQL store', () => {
           await copyFile(path.join(migrations, file), path.join(upTo004, file));
         }
         await pool.query(
-          'DROP TABLE IF EXISTS audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+          'DROP TABLE IF EXISTS game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
         );
         await runMigrations(pool, upTo004);
         await pool.query("INSERT INTO players (id, name, credits) VALUES ('debtor', 'Debitore', -50), ('ok', 'Anna', 100)");
@@ -891,6 +891,76 @@ describeWithDb('PostgreSQL store', () => {
       const result = run(['anna'], url);
 
       expect(result.stdout + result.stderr).not.toMatch(/hash|password/i);
+    });
+  });
+
+  describe('game settings', () => {
+    const actor = { type: 'player', id: 'p9' };
+    const DEFAULTS = { minPlayers: 2, maxPlayers: 10, requiredCredits: 100, jollyHoldSeconds: 30, jollyMaxDeclarations: 3, drawCooldownSeconds: 8 };
+    const auditOf = async () => (await pool.query("SELECT * FROM audit_log WHERE action = 'settings_changed' ORDER BY id")).rows;
+
+    test('after the migrations the settings are the defaults, changed by nobody', async () => {
+      await expect(store.getGameSettings()).resolves.toEqual({ settings: DEFAULTS, updatedAt: null, updatedBy: null });
+    });
+
+    test('a change is stored, and leaves one audit row with the values before and after and the reason', async () => {
+      const result = await store.updateGameSettings({ drawCooldownSeconds: 12 }, { actor, reason: 'più tempo' });
+
+      expect(result).toEqual({ before: DEFAULTS, after: { ...DEFAULTS, drawCooldownSeconds: 12 }, changed: ['drawCooldownSeconds'] });
+      const read = await store.getGameSettings();
+      expect(read.settings.drawCooldownSeconds).toBe(12);
+      expect(read.updatedBy).toBe('p9');
+      expect(read.updatedAt).toBeInstanceOf(Date);
+      const [row, ...others] = await auditOf();
+      expect(others).toHaveLength(0);
+      expect(row).toMatchObject({ actor_type: 'player', actor_id: 'p9', target_id: null });
+      expect(row.details).toEqual({ changes: { drawCooldownSeconds: { from: 8, to: 12 } }, reason: 'più tempo' });
+    });
+
+    test('a change that changes nothing writes nothing: no audit row, nobody is recorded as the author', async () => {
+      const result = await store.updateGameSettings({ drawCooldownSeconds: 8 }, { actor, reason: 'x' });
+
+      expect(result.changed).toEqual([]);
+      await expect(auditOf()).resolves.toHaveLength(0);
+      await expect(store.getGameSettings()).resolves.toMatchObject({ updatedAt: null, updatedBy: null });
+    });
+
+    test.each([
+      ['a value below the interval', { jollyHoldSeconds: 9 }],
+      ['a value above the interval', { requiredCredits: 10001 }],
+      ['a maximum of players below the minimum', { minPlayers: 8, maxPlayers: 6 }],
+      ['a value that is not whole', { jollyMaxDeclarations: 2.5 }],
+    ])('%s is refused with INVALID_SETTINGS, and nothing changes: no audit row', async (_name, patch) => {
+      await expect(store.updateGameSettings(patch, { actor, reason: 'x' })).rejects.toMatchObject({ code: INVALID_SETTINGS });
+
+      await expect(store.getGameSettings()).resolves.toMatchObject({ settings: DEFAULTS });
+      await expect(auditOf()).resolves.toHaveLength(0);
+    });
+
+    test('the database refuses what the schema would have refused: the CHECK constraints', async () => {
+      await expect(pool.query('UPDATE game_settings SET min_players = 1')).rejects.toMatchObject({ code: '23514' });
+      await expect(pool.query('UPDATE game_settings SET min_players = 8, max_players = 6')).rejects.toMatchObject({ code: '23514' });
+      await expect(pool.query('UPDATE game_settings SET draw_cooldown_seconds = 31')).rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('there is only one row', async () => {
+      await expect(pool.query('INSERT INTO game_settings (id) VALUES (2)')).rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('two changes at the same time on different keys are both kept', async () => {
+      await Promise.all([
+        store.updateGameSettings({ requiredCredits: 150 }, { actor, reason: 'a' }),
+        store.updateGameSettings({ jollyHoldSeconds: 45 }, { actor, reason: 'b' }),
+      ]);
+
+      await expect(store.getGameSettings()).resolves.toMatchObject({ settings: { ...DEFAULTS, requiredCredits: 150, jollyHoldSeconds: 45 } });
+      await expect(auditOf()).resolves.toHaveLength(2);
+    });
+
+    test('a reason and an actor are needed', async () => {
+      await expect(store.updateGameSettings({ requiredCredits: 150 }, { actor })).rejects.toThrow(TypeError);
+      await expect(store.updateGameSettings({ requiredCredits: 150 }, { actor, reason: '  ' })).rejects.toThrow(TypeError);
+      await expect(store.updateGameSettings({ requiredCredits: 150 }, { reason: 'x' })).rejects.toThrow(TypeError);
     });
   });
 

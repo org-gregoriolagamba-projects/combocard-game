@@ -22,7 +22,7 @@ import { requestLogger } from "./middleware/requestLogger.js";
 import { apiLimiter } from "./middleware/rateLimiter.middleware.js";
 
 // Import routes
-import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes, meRoutes } from "./routes/index.js";
+import { adminRoutes, authRoutes, playerRoutes, gameRoutes, healthRoutes, meRoutes, settingsRoutes } from "./routes/index.js";
 
 // Import socket handlers
 import { initializeSocketHandlers } from "./sockets/index.js";
@@ -30,6 +30,7 @@ import { riarmaTurni } from "./services/estrazione.service.js";
 
 // Import persistence
 import { initializePersistence } from "./db/index.js";
+import { loadSettings } from "./services/settings.service.js";
 import { createMemoryStore } from "./db/store.js";
 
 // Import CORS utility
@@ -47,7 +48,7 @@ const gameState = {
 };
 
 // Replaced at startup by the store selected from the configuration
-let store = createMemoryStore();
+let store = createMemoryStore({ drawCooldownSeconds: config.drawCooldownSeconds });
 
 const corsOriginHandler = buildCorsOriginHandler(config.corsOrigin);
 
@@ -116,6 +117,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/me", meRoutes);
+app.use("/api/settings", settingsRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/games", gameRoutes);
 
@@ -164,6 +166,7 @@ const startServer = async () => {
 
   try {
     store = await initializePersistence(gameState);
+    await loadSettings(store, gameState);
   } catch (err) {
     console.error(`❌ Could not initialize the database: ${err.message}`);
     process.exit(1);

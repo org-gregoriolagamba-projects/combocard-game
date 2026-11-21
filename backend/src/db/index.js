@@ -36,7 +36,7 @@ export function createPool() {
 export async function initializePersistence(gameState) {
   if (!config.databaseUrl) {
     console.warn("⚠️ DATABASE_URL not set: data is kept in memory and lost on restart");
-    return createMemoryStore();
+    return createMemoryStore({ drawCooldownSeconds: config.drawCooldownSeconds });
   }
 
   const pool = createPool();

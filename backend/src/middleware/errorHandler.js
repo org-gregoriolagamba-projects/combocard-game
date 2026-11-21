@@ -16,6 +16,21 @@ export const notFoundHandler = (req, res, next) => {
 };
 
 /**
+ * An error that carries `retryAfter` (a request that came too soon) tells the client how many seconds
+ * to wait, in the body and in the Retry-After header
+ * @param {Object} err - The error
+ * @param {Object} res - Express response
+ * @returns {Object} What to add to the body
+ */
+const retryAfterOf = (err, res) => {
+  if (typeof err.retryAfter !== "number") {
+    return {};
+  }
+  res.set("Retry-After", String(err.retryAfter));
+  return { retryAfter: err.retryAfter };
+};
+
+/**
  * Send error response in development environment
  */
 const sendErrorDev = (err, res) => {
@@ -24,6 +39,7 @@ const sendErrorDev = (err, res) => {
     error: err,
     message: err.message,
     stack: err.stack,
+    ...retryAfterOf(err, res),
   });
 };
 
@@ -36,6 +52,7 @@ const sendErrorProd = (err, res) => {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
+      ...retryAfterOf(err, res),
     });
   } else {
     // Programming or unknown error: don't leak error details

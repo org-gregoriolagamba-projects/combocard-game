@@ -78,6 +78,8 @@ Tutte le route di `/api/games` e `/api/players` richiedono il token. In particol
 
 Sono state rimosse `POST /api/players/register` e `GET /api/players`.
 
+`GET /api/settings` (ogni utente con il token) dà i parametri di gioco in vigore, i limiti di ciascuno e i predefiniti, e **non** dice chi li ha cambiati. Si cambiano solo dalle route di amministrazione.
+
 ### Socket.IO
 
 La connessione richiede un access token valido in `auth.token`. Il server fa entrare un giocatore solo nelle stanze delle sue partite. Una connessione già aperta non viene chiusa alla scadenza del token: il token viene ricontrollato alla connessione successiva. Un account sospeso, o le cui sessioni sono state chiuse, non si connette (il token si ricontrolla sul database), e le connessioni già aperte vengono chiuse quando l'admin agisce.
@@ -113,6 +115,8 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `POST /api/admin/users/:playerId/password/reset` | `{ reason }`: reimposta la password (vedi "Password provvisoria"). Risponde `{ user, temporaryPassword }` (`404` se non esiste, `409` se sei tu) |
 | `GET /api/admin/games?status=&page=&limit=` | Le partite in attesa o in corso, dalla più vecchia, **solo metadati**: id, stato, quota, massimo di giocatori, montepremi, data e nomi dei giocatori. Mai `mazzo`, cartelle, carte estratte né saldi. L'id di una partita privata è il suo codice: l'admin lo vede |
 | `POST /api/admin/games/:gameId/cancel` | `{ reason }` (obbligatorio, fino a 200 caratteri): annulla una partita in attesa o in corso (`404` se non esiste, `409` se è già finita). Se era in corso, ogni giocatore **ancora presente** riceve la quota d'ingresso (`game_refund`); i premi già assegnati ma non ancora accreditati si perdono, perché la partita conta come mai giocata. Chi l'aveva lasciata ha già perso la quota e non è rimborsato. I giocatori ricevono `gameCancelled` `{ gameId, gettoni, refund }` |
+| `GET /api/admin/settings` | I parametri di gioco (`values`), i limiti (`limits`) e i predefiniti (`defaults`), più `updatedAt` e `updatedBy` (chi li ha cambiati per ultimo) |
+| `PATCH /api/admin/settings` | `{ values, reason }`: cambia uno o più dei sei parametri (`minPlayers` 2–10, `maxPlayers` 2–20, `requiredCredits` 1–10.000, `jollyHoldSeconds` 10–120, `jollyMaxDeclarations` 1–10, `drawCooldownSeconds` 3–30), con un **motivo obbligatorio** (fino a 200 caratteri). Numeri interi veri (una stringa non si converte); un valore fuori intervallo, una chiave sconosciuta o un massimo di giocatori sotto il minimo danno `400` e non cambiano nulla; `503` se il database non può scrivere. Risponde come la `GET`. Scrive una riga di audit `settings_changed`. Limite di 10 richieste al minuto |
 | `GET /api/admin/stats` | Numeri della piattaforma, senza nomi: utenti registrati, in partita ora e admin; partite in attesa, in corso, finite e annullate; crediti in circolazione e nel montepremi delle partite in corso; montepremi distribuiti |
 | `GET /api/admin/audit?targetId=&page=&limit=` | Il registro delle azioni, dalla più recente, filtrabile per utente |
 

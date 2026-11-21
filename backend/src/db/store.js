@@ -13,6 +13,7 @@
  */
 
 import { ACCOUNT_ROLES } from "../config/constants.js";
+import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS, checkGameSettings, defaultGameSettings } from "../config/gameSettings.js";
 
 const DEFAULT_RETRY_DELAY_MS = 5000;
 const PG_UNIQUE_VIOLATION = "23505";
@@ -22,6 +23,7 @@ export const LAST_ADMIN = "LAST_ADMIN";
 export const INVALID_ROLE = "INVALID_ROLE";
 export const INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS";
 export const PLAYER_IN_GAME = "PLAYER_IN_GAME";
+export const INVALID_SETTINGS = "INVALID_SETTINGS";
 
 // What the name of a player who deleted the account (or whose account was deleted) becomes
 export const DELETED_PLAYER_NAME = "Utente eliminato";
@@ -59,6 +61,38 @@ function assertActor(actor) {
     throw new TypeError("This change needs the actor: { type: 'system' } or { type: 'player', id }");
   }
 }
+
+/**
+ * Merge a change into the settings and check the result as a whole
+ * @param {Object} before - The current settings
+ * @param {Object} patch - The keys to change
+ * @returns {Object} { after, changed, details }: the merged settings, the keys that really change, and { key: { from, to } }
+ * @throws {Error} With code INVALID_SETTINGS
+ */
+function applySettingsPatch(before, patch) {
+  const after = { ...before, ...patch };
+  const problem = checkGameSettings(after);
+  if (problem) {
+    throw Object.assign(new Error(problem), { code: INVALID_SETTINGS });
+  }
+  const changed = GAME_SETTING_KEYS.filter((key) => after[key] !== before[key]);
+  const details = Object.fromEntries(changed.map((key) => [key, { from: before[key], to: after[key] }]));
+  return { after, changed, details };
+}
+
+// The columns of game_settings, by key of the settings
+const SETTING_COLUMNS = {
+  minPlayers: "min_players",
+  maxPlayers: "max_players",
+  requiredCredits: "required_credits",
+  jollyHoldSeconds: "jolly_hold_seconds",
+  jollyMaxDeclarations: "jolly_max_declarations",
+  drawCooldownSeconds: "draw_cooldown_seconds",
+};
+
+const settingsFromRow = (row) => Object.fromEntries(
+  GAME_SETTING_KEYS.map((key) => [key, row[SETTING_COLUMNS[key]]]),
+);
 
 /**
  * A credit adjustment is a whole amount that is not zero, with a reason and the one who makes it
@@ -168,9 +202,18 @@ export function decideRotation(record, graceSeconds, now = new Date()) {
 
 /**
  * Store used when DATABASE_URL is not set: data lives in memory only
+ * @param {Object} [options] - { drawCooldownSeconds }: where the wait between draws starts, when it is
+ *   a whole number inside its interval (the DRAW_COOLDOWN_SECONDS of the environment); the default otherwise
  * @returns {Object} Store with the same interface as the PostgreSQL one
  */
-export function createMemoryStore() {
+export function createMemoryStore({ drawCooldownSeconds } = {}) {
+  const settings = defaultGameSettings();
+  const { min, max } = GAME_SETTING_LIMITS.drawCooldownSeconds;
+  if (Number.isInteger(drawCooldownSeconds) && drawCooldownSeconds >= min && drawCooldownSeconds <= max) {
+    settings.drawCooldownSeconds = drawCooldownSeconds;
+  }
+  let settingsUpdatedAt = null;
+  let settingsUpdatedBy = null;
   const accounts = new Map();
   const refreshTokens = new Map();
   const audit = [];
@@ -378,6 +421,21 @@ export function createMemoryStore() {
     },
     async countAuditEvents({ targetId = null, action = null } = {}) {
       return audit.filter((e) => (!targetId || e.targetId === targetId) && (!action || e.action === action)).length;
+    },
+    async getGameSettings() {
+      return { settings: { ...settings }, updatedAt: settingsUpdatedAt, updatedBy: settingsUpdatedBy };
+    },
+    async updateGameSettings(patch, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      const before = { ...settings };
+      const { after, changed, details } = applySettingsPatch(before, patch);
+      if (changed.length > 0) {
+        Object.assign(settings, after);
+        settingsUpdatedAt = new Date();
+        settingsUpdatedBy = actor.id ?? null;
+        pushAudit(actor, "settings_changed", null, { changes: details, reason: reason.trim() });
+      }
+      return { before, after: { ...after }, changed };
     },
     async cancelGame(game, refunds, { actor, reason } = {}) {
       assertGameCancellation(reason, actor);
@@ -1401,6 +1459,47 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
     async findGame(gameId) {
       const { rows } = await pool.query("SELECT state FROM games WHERE id = $1", [gameId]);
       return rows[0]?.state ?? null;
+    },
+
+    /**
+     * The game settings, with when and by whom they were last changed
+     * @returns {Promise<Object>} { settings, updatedAt, updatedBy }
+     */
+    async getGameSettings() {
+      const { rows } = await pool.query("SELECT * FROM game_settings WHERE id = 1");
+      return { settings: settingsFromRow(rows[0]), updatedAt: rows[0].updated_at, updatedBy: rows[0].updated_by };
+    },
+
+    /**
+     * Change some of the game settings, with the audit row, in one transaction. The row is locked, so
+     * two changes at the same time are both kept; what is checked is the result of the merge.
+     * @param {Object} patch - The keys to change
+     * @param {Object} options - { actor, reason }
+     * @returns {Promise<Object>} { before, after, changed }: nothing is written when nothing changes
+     * @throws {Error} With code INVALID_SETTINGS
+     */
+    async updateGameSettings(patch, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      return withTransaction(async (client) => {
+        const { rows } = await client.query("SELECT * FROM game_settings WHERE id = 1 FOR UPDATE");
+        const before = settingsFromRow(rows[0]);
+        const { after, changed, details } = applySettingsPatch(before, patch);
+        if (changed.length === 0) {
+          return { before, after, changed };
+        }
+
+        const assignments = changed.map((key, i) => `${SETTING_COLUMNS[key]} = $${i + 2}`);
+        await client.query(
+          `UPDATE game_settings SET ${assignments.join(", ")}, updated_at = now(), updated_by = $1 WHERE id = 1`,
+          [actor.id ?? null, ...changed.map((key) => after[key])],
+        );
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'settings_changed', NULL, $3)`,
+          [actor.type, actor.id ?? null, JSON.stringify({ changes: details, reason: reason.trim() })],
+        );
+        return { before, after, changed };
+      });
     },
 
     /**

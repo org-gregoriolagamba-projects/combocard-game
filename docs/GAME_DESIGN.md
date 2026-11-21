@@ -88,13 +88,32 @@ Choosing the card takes time, and a card drawn meanwhile could change what the J
 The creator chooses who draws when creating the game (`estrazione` in `POST /api/games`): `"tutti"` (every player in turn; the screen proposes it) or `"creatore"` (only the creator, the classic mode; it is what a request without the field gets, so existing clients keep working).
 
 - **The round.** The server shuffles the players and gives each one a turn before anyone has a second one, then shuffles again; the last of a round does not open the next. The creator has no privilege. A player who is not connected, or has a red card, is skipped; if nobody at all is connected the server cannot tell who is away and skips nobody. If the player on turn leaves, the turn goes to another one.
-- **The wait.** The server keeps the 8 seconds between draws (`DRAW_COOLDOWN_SECONDS`): drawing too soon is a 409, drawing out of turn a 403. In the classic mode the wait stays in the client only, as before.
+- **The wait.** The server keeps the wait between draws (8 seconds by default, `drawCooldownSeconds` of the game settings): drawing too soon is a 429 with the seconds left (`retryAfter`, and the `Retry-After` header), drawing out of turn a 403. The classic mode keeps the same wait on the server (`game.attesaFino`); the pause of the Jolly does not make it shorter or longer.
 - **The time limit.** The player on turn has `DRAW_TURN_SECONDS` (60 by default). Everybody sees who draws and a countdown. When it runs out the card is **drawn by itself** and the player gets a **yellow card**; the second time a **red card**, and he no longer draws until the end of the game (he goes on playing). If nobody can draw any more, the server draws by itself after the wait.
 - **The warning.** In the last five seconds of a turn everybody hears a beep for each second (5, 4, 3, 2, 1) and a siren at 0:00, when the server draws the card (`useSegnaliTurno`). They follow the sound rules (the game's choice, the player's mute) and go with the countdown on the screen; nothing sounds while the turn is stopped, and a screen opened on a turn that is already over stays quiet.
 - **The jolly.** The time limit stops while a player chooses the card for the jolly and goes on from where it stopped (also if the choice runs out of time).
 - **State.** `game.turno` (`playerId`, `attesaFino`, `scadenza`, `sospesoDa`), the round (`codaEstrattori`, `ultimoEstrattore`, kept on the server) and, for each player, `ammonizioni` and `espulso` (public: the others see who is warned) are saved with the game. The timers are not: at startup `riarmaTurni` arms them again for the games in progress.
 - **What the clients get.** `GET /api/games/:id` carries `turno` with the times in milliseconds *left* (`attesaIn`, `scadenzaIn`, `sospeso`), so a clock that is off cannot show an absurd time. Events: `turnoEstrazione` (a new turn) and `ammonizione` (`playerId`, `colore` `gialla` or `rossa`, `ammonizioni`).
 - **Fairness.** The card is always the one the server draws from the shuffled deck: whoever draws only asks for it and cannot influence which one comes out.
+
+## ⚙️ Game settings
+
+Six parameters of the game are not constants of the code: an admin changes them (`PATCH /api/admin/settings`, with a reason, see [AUTH.md](AUTH.md)) and they are stored in the `game_settings` table ([DATABASE.md](DATABASE.md)).
+
+| Key | Default | Allowed |
+|---|---|---|
+| `minPlayers` | 2 | 2–10 |
+| `maxPlayers` | 10 | 2–20, never below `minPlayers` |
+| `requiredCredits` | 100 | 1–10,000 |
+| `jollyHoldSeconds` | 30 | 10–120 |
+| `jollyMaxDeclarations` | 3 | 1–10 |
+| `drawCooldownSeconds` | 8 | 3–30 |
+
+- **A value outside its interval is refused** (`400`), never corrected. The intervals are in `backend/src/config/gameSettings.js`; the database repeats them in `CHECK` constraints.
+- **A game keeps the settings it was created with.** `game.settings` is a copy taken at the creation and saved with the game: a change reaches the games created afterwards, never the ones waiting or in progress. A game saved before the settings existed uses the values of today.
+- **The creator's choices stay inside the settings.** The fee of a game is from 1 to 10,000 (without it, the current `requiredCredits`) and its maximum of players is from the current `minPlayers` to the current `maxPlayers`; a fee of 0 is a `400`.
+- **Where the server reads them.** `gameState.settings` is loaded at startup and changed only after the store has written the change. Every logged-in user reads them from `GET /api/settings`, with the limits and the defaults.
+- **Without a database** the settings start from the defaults (the wait from `DRAW_COOLDOWN_SECONDS`, if it is inside its interval) and are lost at restart.
 
 ## 🔊 Sounds
 
@@ -127,7 +146,7 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 - Take credits with **Prendi crediti** (preset cuts + reset, max purchase 10,000)
 
 ### 3. Lobby (Pre-game)
-- Wait for other players (2–10 players per game)
+- Wait for other players (from `minPlayers` to `maxPlayers` per game, 2 to 10 by default: see "Game settings")
 - Creator can start game when ready
 - **Auto-start** triggers when the max player limit is reached
 
@@ -135,7 +154,7 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 - Each player gets a sheet of 25 random, different cards (a 5x5 grid on the server, shown as a tombola sheet, see above)
 - One shared deck is drawn from by the creator or, if the creator chose so, by every player in turn (see "Drawing by turns")
 - When a card is drawn, all players who have it in their grid get it "covered"
-- **Draw cooldown**: 8 seconds between draws
+- **Draw cooldown**: 8 seconds between draws by default (see "Game settings")
 - Players race to complete collections
 
 ### Real-time Multiplayer (Functional Notes)
@@ -160,7 +179,7 @@ backend/src/
 ├── db/                  # Stores (memory and PostgreSQL), migrations, admin script
 ├── middleware/          # Express middleware (auth, validation, logging)
 ├── routes/              # API route definitions
-├── services/            # Business logic (game, jolly, turns, player, account, admin)
+├── services/            # Business logic (game, jolly, turns, settings, player, account, admin)
 ├── sockets/             # Socket.IO real-time handlers
 ├── utils/               # Utilities (errors, responses, cards)
 └── server.js            # Entry point
@@ -191,6 +210,6 @@ Already done: persistence on PostgreSQL, accounts with sessions, player history 
 - [ ] Global leaderboards
 - [ ] Password recovery
 - [ ] Private rooms created and managed by the users
-- [ ] Game parameters (time limit, wait, shares) changeable by an admin
+- [ ] Game parameters changeable by an admin: the six of the game settings can be changed through the API; the screens (reading them in the app, and the admin screen), the time limit of a turn and the prize shares are still to do
 - [ ] Tournament mode
 - [ ] Mobile app (React Native)

@@ -7,6 +7,7 @@
 
 import Joi from "joi";
 import { ACCOUNT_ROLES, COLLECTION_TYPES, GAME_DEFAULTS } from "../config/constants.js";
+import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS } from "../config/gameSettings.js";
 
 const integer = Joi.number().integer().strict();
 const collectionType = Joi.string().valid(...Object.values(COLLECTION_TYPES));
@@ -51,9 +52,10 @@ export const buyCreditsSchema = Joi.object({
 
 // Game routes
 export const createGameSchema = Joi.object({
-  requiredCredits: integer.min(0),
+  // The absolute limits of the settings: the current ones can be narrower, and the controller checks them
+  requiredCredits: integer.min(GAME_SETTING_LIMITS.requiredCredits.min).max(GAME_SETTING_LIMITS.requiredCredits.max),
   isPrivate: Joi.boolean().strict(),
-  maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
+  maxPlayers: integer.min(GAME_SETTING_LIMITS.maxPlayers.min).max(GAME_SETTING_LIMITS.maxPlayers.max),
   // Whether the game has sounds; the creator chooses, and without a choice it has them
   soundsEnabled: Joi.boolean().strict(),
   // Who draws: the creator (classic, the default) or every player in turn
@@ -109,6 +111,17 @@ export const adminAdjustCreditsSchema = Joi.object({
 
 // Suspend, reinstate or close the sessions of a user: always with the reason that goes in the audit log
 export const adminUserActionSchema = Joi.object({
+  reason: Joi.string().trim().min(1).max(200).required(),
+});
+
+// Some of the game settings, each a whole number inside its interval (a string is not converted), with the
+// reason that goes in the audit log. An unknown key is refused here, not dropped by the validate middleware
+// (a typo next to a valid key would vanish while the rest is changed). That the maximum of players is not below the minimum depends on the
+// current values: the service checks it on the result
+export const adminUpdateSettingsSchema = Joi.object({
+  values: Joi.object(
+    Object.fromEntries(GAME_SETTING_KEYS.map((key) => [key, integer.min(GAME_SETTING_LIMITS[key].min).max(GAME_SETTING_LIMITS[key].max)])),
+  ).min(1).required().prefs({ stripUnknown: false }),
   reason: Joi.string().trim().min(1).max(200).required(),
 });
 

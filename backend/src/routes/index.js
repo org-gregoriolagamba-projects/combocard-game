@@ -10,3 +10,4 @@ export { default as playerRoutes } from "./player.routes.js";
 export { default as gameRoutes } from "./game.routes.js";
 export { default as meRoutes } from "./me.routes.js";
 export { default as healthRoutes } from "./health.routes.js";
+export { default as settingsRoutes } from "./settings.routes.js";

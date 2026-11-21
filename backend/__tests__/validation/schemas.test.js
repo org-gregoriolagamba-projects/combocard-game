@@ -21,6 +21,7 @@ import {
   adminListGamesQuerySchema,
   adminListUsersQuerySchema,
   adminUpdateUserSchema,
+  adminUpdateSettingsSchema,
 } from '../../src/validation/schemas.js';
 
 const isValid = (schema, body) => !schema.validate(body).error;
@@ -77,8 +78,8 @@ describe('buyCreditsSchema', () => {
 });
 
 describe('createGameSchema', () => {
-  test('accepts what the frontend sends, including 0 credits for the default', () => {
-    expect(isValid(createGameSchema, { requiredCredits: 0, isPrivate: false, maxPlayers: 10 })).toBe(true);
+  test('accepts what the frontend sends, inside the absolute limits (the current ones are checked by the controller)', () => {
+    expect(isValid(createGameSchema, { requiredCredits: 1, isPrivate: false, maxPlayers: 10 })).toBe(true);
   });
 
   test('has no required field', () => {
@@ -92,10 +93,12 @@ describe('createGameSchema', () => {
 
   test.each([
     [{ requiredCredits: -1 }],
+    [{ requiredCredits: 0 }],
+    [{ requiredCredits: 10001 }],
+    [{ maxPlayers: 21 }],
     [{ requiredCredits: '100' }],
     [{ requiredCredits: 1.5 }],
     [{ maxPlayers: 1 }],
-    [{ maxPlayers: 11 }],
     [{ isPrivate: 'true' }],
   ])('rejects %j', (body) => {
     expect(isValid(createGameSchema, body)).toBe(false);
@@ -299,5 +302,47 @@ describe('admin schemas', () => {
     ])('rejects %s', (_name, body) => {
       expect(deleteAccountSchema.validate(body).error).toBeDefined();
     });
+  });
+});
+
+describe('adminUpdateSettingsSchema', () => {
+  const body = (overrides = {}) => ({ values: { drawCooldownSeconds: 12 }, reason: 'più tempo', ...overrides });
+
+  test('accepts some keys with a reason, and all six at once', () => {
+    expect(isValid(adminUpdateSettingsSchema, body())).toBe(true);
+    expect(isValid(adminUpdateSettingsSchema, body({
+      values: { minPlayers: 2, maxPlayers: 20, requiredCredits: 10000, jollyHoldSeconds: 10, jollyMaxDeclarations: 1, drawCooldownSeconds: 30 },
+    }))).toBe(true);
+  });
+
+  test.each([
+    ['no values', { values: undefined }],
+    ['empty values', { values: {} }],
+    ['an unknown key', { values: { cheat: 1 } }],
+    ['a string, not converted', { values: { requiredCredits: '150' } }],
+    ['a decimal', { values: { requiredCredits: 150.5 } }],
+    ['a value below the interval', { values: { drawCooldownSeconds: 2 } }],
+    ['a value above the interval', { values: { drawCooldownSeconds: 31 } }],
+    ['no reason', { reason: undefined }],
+    ['an empty reason', { reason: '   ' }],
+    ['a reason that is too long', { reason: 'x'.repeat(201) }],
+  ])('refuses %s', (_name, overrides) => {
+    expect(isValid(adminUpdateSettingsSchema, body(overrides))).toBe(false);
+  });
+
+  test('an unknown key next to a valid one is refused by the middleware, not dropped in silence', () => {
+    // The middleware strips unknown fields: here a typo would otherwise vanish while the rest is changed
+    const next = jest.fn();
+    const req = { body: { values: { drawCooldownSecond: 12, minPlayers: 3 }, reason: 'x' } };
+
+    validate(adminUpdateSettingsSchema)(req, {}, next);
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 400, message: expect.stringContaining('drawCooldownSecond') });
+  });
+
+  test('the message of a value outside its interval names the key', () => {
+    const { error } = adminUpdateSettingsSchema.validate(body({ values: { drawCooldownSeconds: 31 } }));
+
+    expect(error.message).toContain('drawCooldownSeconds');
   });
 });
