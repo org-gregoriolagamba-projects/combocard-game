@@ -2,8 +2,10 @@
  * RegoleGioco Component
  *
  * The full rules of the game and how it works, in plain words, for the
- * "Come si gioca" section under the collections. The prize shares are read
- * from the game, so they are the ones this game really uses.
+ * "Come si gioca" section under the collections. The prize shares and the numbers
+ * (players, wait between draws) are read from the game or from the settings of the
+ * server, so they are the ones this game really uses. A number that is not there is
+ * not written: the sentence is read without it.
  */
 
 import React from "react";
@@ -41,7 +43,22 @@ function Sezione({ titolo, children }) {
 
 Sezione.propTypes = { titolo: PropTypes.string.isRequired, children: PropTypes.node };
 
-function RegoleGioco({ game = null }) {
+// The numbers of the rules: the settings given, or the ones of the game
+function numeriDelleRegole(parametri, game) {
+  const p = { ...(game?.settings ?? {}), ...(parametri ?? {}) };
+  return {
+    giocatori: Number.isInteger(p.minPlayers) && Number.isInteger(p.maxPlayers)
+      ? `Si gioca da ${p.minPlayers} a ${p.maxPlayers}.`
+      : "Il numero di giocatori lo decide chi gestisce il gioco.",
+    attesa: Number.isInteger(p.drawCooldownSeconds)
+      ? `con almeno ${p.drawCooldownSeconds} secondi tra una e l'altra`
+      : "con una breve attesa tra una e l'altra",
+  };
+}
+
+function RegoleGioco({ game = null, parametri = null }) {
+  const { giocatori, attesa } = numeriDelleRegole(parametri, game);
+
   return (
     <div className="space-y-4 pb-3 text-sm leading-relaxed text-testo-2 [text-wrap:pretty]">
       <Sezione titolo="Lo scopo">
@@ -57,11 +74,11 @@ function RegoleGioco({ game = null }) {
             All&apos;inizio ogni giocatore paga i crediti d&apos;ingresso: messi insieme formano il montepremi.
           </li>
           <li>
-            Si gioca da 2 a 10. La partita parte quando il creatore la avvia, o da sola se si riempie.
+            {giocatori} La partita parte quando il creatore la avvia, o da sola se si riempie.
           </li>
           <li>Ognuno riceve una cartella di 25 carte diverse, prese dal mazzo napoletano da 40.</li>
           <li>
-            Estrae una carta alla volta, con almeno 8 secondi tra una e l&apos;altra. Di norma estraggono a turno tutti
+            Estrae una carta alla volta, {attesa}. Di norma estraggono a turno tutti
             i giocatori: il sistema sceglie chi, a giro, e il tempo che resta lo vedono tutti. Chi non estrae entro il
             tempo limite riceve un cartellino giallo e la carta esce da sola; la seconda volta è cartellino rosso e
             non estrae più, ma continua a giocare. Se il creatore ha scelto di estrarre da solo, estrae lui. La carta
@@ -132,7 +149,10 @@ RegoleGioco.propTypes = {
   game: PropTypes.shape({
     montepremi: PropTypes.number,
     collezioniDistribuzione: PropTypes.object,
+    settings: PropTypes.object,
   }),
+  // The settings of the server (players, wait between draws): they win over the ones of the game
+  parametri: PropTypes.object,
 };
 
 export default RegoleGioco;

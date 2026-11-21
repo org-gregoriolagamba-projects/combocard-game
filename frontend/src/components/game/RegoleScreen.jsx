@@ -9,15 +9,26 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { acceptRules, logout } from "../../store/slices/playerSlice";
+import { fetchSettings } from "../../store/slices/settingsSlice";
 import RegoleGioco from "./RegoleGioco";
 
 function RegoleScreen() {
   const dispatch = useDispatch();
   const { id: playerId, name: playerName, error } = useSelector((state) => state.player);
+  const { values: settings, status: settingsStatus, error: settingsError } = useSelector((state) => state.settings);
   const fine = useRef(null);
   const inFlight = useRef(false);
   const [lette, setLette] = useState(() => typeof window.IntersectionObserver !== "function");
   const [dichiarato, setDichiarato] = useState(false);
+
+  // The numbers of the rules are the ones of the server: read them if the screen does not have them yet
+  useEffect(() => {
+    if (!settings) {
+      dispatch(fetchSettings());
+    }
+    // Only once, when the screen opens: the retry is the button
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The declaration opens when the end of the rules has been on screen
   useEffect(() => {
@@ -55,7 +66,19 @@ function RegoleScreen() {
           </p>
 
           <div className="mt-5 border-t border-linea pt-5">
-            <RegoleGioco game={null} />
+            {settingsStatus === "error" && !settings && (
+              <div role="alert" className="mb-4 space-y-2 rounded-xl border border-linea-forte p-3 text-sm text-testo">
+                <p>{settingsError}</p>
+                <button
+                  type="button"
+                  onClick={() => dispatch(fetchSettings())}
+                  className="min-h-[44px] rounded-lg border-2 border-linea-forte bg-notte-700 px-4 font-bold text-testo transition hover:bg-notte-600"
+                >
+                  Riprova
+                </button>
+              </div>
+            )}
+            <RegoleGioco game={null} parametri={settings} />
           </div>
 
           <div ref={fine} data-testid="fine-regole" aria-hidden="true" className="h-px" />

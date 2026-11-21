@@ -2,13 +2,22 @@ import React from 'react';
 import { screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { RegoleScreen } from '../../components/game';
-import { renderWithProviders } from '../test-utils';
+import { renderWithProviders, readySettings } from '../test-utils';
 import * as playerService from '../../services/playerService';
+import * as settingsService from '../../services/settingsService';
 
 vi.mock('../../services/playerService');
+vi.mock('../../services/settingsService');
 
-const state = () => ({
+const noSettings = { values: null, limits: null, status: 'idle', error: null, requestId: null };
+const state = (settings = readySettings) => ({
   player: { id: 'p1', name: 'Anna', credits: 0, regoleAccettateIl: null },
+  settings,
+});
+const serve = (values = {}) => settingsService.getSettings.mockResolvedValue({
+  values: { ...readySettings.values, ...values },
+  limits: readySettings.limits,
+  defaults: readySettings.values,
 });
 
 // A fake IntersectionObserver that lets the test say when the end of the rules is seen
@@ -27,7 +36,10 @@ const installObserver = () => {
 const reachTheEnd = () => act(() => observers.forEach((o) => o.callback([{ isIntersecting: true }])));
 
 describe('RegoleScreen: the rules every new player must read', () => {
-  beforeEach(() => installObserver());
+  beforeEach(() => {
+    installObserver();
+    serve();
+  });
   afterEach(() => {
     delete window.IntersectionObserver;
   });
@@ -105,5 +117,37 @@ describe('RegoleScreen: the rules every new player must read', () => {
     renderWithProviders(<RegoleScreen />, { preloadedState: state() });
 
     expect(screen.getByLabelText(/Ho letto e compreso le regole/)).toBeEnabled();
+  });
+
+  describe('the numbers of the rules are the ones of the server', () => {
+    test('with the settings already read, the rules say them', () => {
+      renderWithProviders(<RegoleScreen />, { preloadedState: state({ ...readySettings, values: { ...readySettings.values, minPlayers: 3, maxPlayers: 8, drawCooldownSeconds: 12 } }) });
+
+      expect(screen.getByText(/Si gioca da 3 a 8\./)).toBeInTheDocument();
+      expect(screen.getByText(/Estrae una carta alla volta/)).toHaveTextContent('almeno 12 secondi');
+      expect(settingsService.getSettings).not.toHaveBeenCalled();
+    });
+
+    test('without them the screen reads them, and the numbers appear', async () => {
+      serve({ maxPlayers: 7 });
+      renderWithProviders(<RegoleScreen />, { preloadedState: state(noSettings) });
+
+      expect(screen.getByText(/Il numero di giocatori lo decide chi gestisce il gioco/)).toBeInTheDocument();
+      expect(await screen.findByText(/Si gioca da 2 a 7\./)).toBeInTheDocument();
+    });
+
+    test('if they cannot be read the rules say so with "Riprova", and no number is invented', async () => {
+      settingsService.getSettings.mockRejectedValue(new Error('Impossibile contattare il server'));
+      renderWithProviders(<RegoleScreen />, { preloadedState: state(noSettings) });
+
+      expect(await screen.findByText('Impossibile contattare il server')).toBeInTheDocument();
+      expect(screen.getByText(/Il numero di giocatori lo decide chi gestisce il gioco/)).toBeInTheDocument();
+
+      serve({ maxPlayers: 6 });
+      fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+
+      expect(await screen.findByText(/Si gioca da 2 a 6\./)).toBeInTheDocument();
+      expect(screen.queryByText('Impossibile contattare il server')).not.toBeInTheDocument();
+    });
   });
 });

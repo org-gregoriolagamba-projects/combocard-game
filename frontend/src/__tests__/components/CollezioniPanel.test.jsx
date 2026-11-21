@@ -182,4 +182,13 @@ describe('CollezioniPanel', () => {
     expect(screen.getByText(/una sola carta/)).toBeInTheDocument();
     expect(screen.getByText(/Scopa: la carta cambia seme e tiene il valore/)).toBeInTheDocument();
   });
+
+  test('the rules under the collections use the settings of the game', () => {
+    renderPanel({ game: { ...baseGame(), settings: { minPlayers: 2, maxPlayers: 6, drawCooldownSeconds: 12 } } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Come si gioca/ }));
+
+    expect(screen.getByText(/Si gioca da 2 a 6\./)).toBeInTheDocument();
+    expect(screen.getByText(/Estrae una carta alla volta/)).toHaveTextContent('almeno 12 secondi');
+  });
 });
