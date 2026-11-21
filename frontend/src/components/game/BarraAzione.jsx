@@ -37,6 +37,8 @@ function BarraAzione({
   jollyConversione = null,
   jollyScelte = null,
   pausa = null,
+  // The time to choose the jolly card of the game, in seconds: the count never shows more
+  durataJolly,
   variant = "bar",
   onDraw,
   onCancelJolly,
@@ -128,7 +130,7 @@ function BarraAzione({
           {pausa?.mia && (
             <p className="mt-1 text-xs font-bold">
               Le estrazioni sono ferme: hai ancora{" "}
-              <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} /> per scegliere
+              <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} durata={durataJolly} /> per scegliere
             </p>
           )}
         </div>
@@ -142,7 +144,7 @@ function BarraAzione({
           <Pause size={18} aria-hidden="true" className="shrink-0 text-oro" />
           <span>
             {pausa.nome} sta scegliendo il Jolly:{" "}
-            <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} />
+            <ConteggioJolly key={pausa.scadenza} scadenza={pausa.scadenza} durata={durataJolly} />
           </span>
         </p>
       )}
@@ -223,6 +225,7 @@ BarraAzione.propTypes = {
   status: PropTypes.string,
   drawCooldown: PropTypes.number,
   attesaTotale: PropTypes.number,
+  durataJolly: PropTypes.number,
   jollyMode: PropTypes.string,
   jollyPending: PropTypes.shape({
     valore: PropTypes.string,

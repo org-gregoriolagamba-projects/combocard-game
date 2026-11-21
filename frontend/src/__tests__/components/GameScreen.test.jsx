@@ -648,4 +648,50 @@ describe('GameScreen', () => {
       expect(screen.getAllByRole('button', { name: /Attendi [23]s/ })[0]).toBeDisabled();
     });
   });
+
+  describe('the time to choose the jolly card, from the settings of the game', () => {
+    beforeEach(() => {
+      window.localStorage.setItem('combocard.guida-letta', '1');
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      window.localStorage.clear();
+    });
+
+    // A pause that the clock says lasts 100 seconds: only the time of the game can end it earlier
+    const withLongPause = (settings) => {
+      const state = stateFor('anna');
+      state.game.game = {
+        ...state.game.game,
+        settings,
+        jollyInCorso: { playerId: 'carlo', name: 'Carlo', tipo: 'tris', scadenza: Date.now() + 100_000 },
+      };
+      return state;
+    };
+
+    test('the screen closes the pause when the time of the game is over, not before', () => {
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: withLongPause({ jollyHoldSeconds: 45 }) });
+
+      act(() => {
+        vi.advanceTimersByTime(44_900);
+      });
+      expect(store.getState().game.game.jollyInCorso).not.toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(store.getState().game.game.jollyInCorso).toBeNull();
+    });
+
+    test('without the time of the game the screen does not cut the pause: the moment of the server decides', () => {
+      const { store } = renderWithProviders(<GameScreen />, { preloadedState: withLongPause(undefined) });
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(store.getState().game.game.jollyInCorso).not.toBeNull();
+    });
+  });
 });

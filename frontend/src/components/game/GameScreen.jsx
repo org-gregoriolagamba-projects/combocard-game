@@ -46,7 +46,6 @@ import BarraAzione from "./BarraAzione";
 import { Modal, Button } from "../common";
 import { carteConJolly, celleVincenti } from "../../utils";
 import { useSegnaliTurno } from "../../hooks/useSegnaliTurno";
-import { SECONDI_PAUSA_JOLLY } from "./ConteggioJolly";
 
 const TIPI = ["tris", "sequenza", "scopa", "napola", "combocard_reale"];
 const SECONDI_LUCI = 6000;
@@ -119,6 +118,7 @@ function GameScreen() {
   const pausaScadenza = pausa?.scadenza;
   const pausaTipo = pausa?.tipo;
   const pausaMia = Boolean(pausa) && pausaDi === playerId;
+  const durataJolly = game?.settings?.jollyHoldSeconds;
 
   // Handle draw cooldown timer
   useEffect(() => {
@@ -133,7 +133,9 @@ function GameScreen() {
   // The pause ends by itself: the server lets the draws go on, and so does the screen
   useEffect(() => {
     if (!pausaScadenza) return undefined;
-    const ms = Math.min(Math.max(pausaScadenza - Date.now(), 0), SECONDI_PAUSA_JOLLY * 1000);
+    // The pause is the moment the server sent, and never longer than the time to choose of the game
+    const restante = Math.max(pausaScadenza - Date.now(), 0);
+    const ms = durataJolly === undefined ? restante : Math.min(restante, durataJolly * 1000);
     const timer = setTimeout(() => {
       // The pause first, then the mode: the mode is never restored from a pause that has ended
       dispatch(clearJollyInCorso(pausaDi));
@@ -148,7 +150,7 @@ function GameScreen() {
       }
     }, ms);
     return () => clearTimeout(timer);
-  }, [pausaScadenza, pausaDi, playerId, dispatch]);
+  }, [pausaScadenza, pausaDi, playerId, durataJolly, dispatch]);
 
   // After a reload the player's own pause is still running: the mode comes back with it
   useEffect(() => {
@@ -338,6 +340,7 @@ function GameScreen() {
       status={game?.status}
       drawCooldown={attesaEstrazione}
       attesaTotale={game?.settings?.drawCooldownSeconds}
+      durataJolly={durataJolly}
       jollyMode={isGameFinished ? null : jollyMode}
       jollyPending={cartaScelta ? { valore: cartaScelta.valore, seme: cartaScelta.seme } : null}
       jollyConversione={conversione}
