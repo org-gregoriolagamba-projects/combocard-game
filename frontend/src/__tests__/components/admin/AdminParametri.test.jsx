@@ -142,10 +142,19 @@ describe('AdminScreen: the game settings', () => {
     expect(store.getState().ui.toasts.at(-1).message).toBe("Non hai più i permessi dell'amministrazione");
   });
 
+  test('the name of "Ripristina" starts with the text that is seen on it, so that it can be said aloud', async () => {
+    await open();
+
+    const restores = await screen.findAllByRole('button', { name: /^Ripristina predefinito: / });
+
+    expect(restores).toHaveLength(6);
+    restores.forEach((restore) => expect(restore).toHaveTextContent('Ripristina predefinito'));
+  });
+
   test('"Ripristina" puts the default in the field, and is off when the field already has it', async () => {
     await open();
     const field = await screen.findByLabelText('Attesa tra le estrazioni');
-    const restore = screen.getByRole('button', { name: 'Ripristina Attesa tra le estrazioni' });
+    const restore = screen.getByRole('button', { name: 'Ripristina predefinito: Attesa tra le estrazioni' });
     expect(restore).toBeEnabled();
 
     fireEvent.click(restore);
@@ -307,6 +316,38 @@ describe('AdminScreen: the game settings', () => {
       save();
 
       await waitFor(() => expect(store.getState().ui.currentScreen).toBe('hall'));
+    });
+
+    test('a failed save moves the focus to the first field with a problem, in the order of the form', async () => {
+      await openForm();
+
+      type('Pausa del Jolly', '5');
+      type('Attesa tra le estrazioni', '99');
+      save();
+
+      expect(screen.getByLabelText('Pausa del Jolly')).toHaveFocus();
+    });
+
+    test('if the only problem is the reason, the focus goes to the reason', async () => {
+      await openForm();
+
+      type('Attesa tra le estrazioni', '15');
+      save();
+
+      expect(screen.getByLabelText('Motivo')).toHaveFocus();
+    });
+
+    test('a save that is right does not move the focus away', async () => {
+      adminService.updateSettings.mockResolvedValue(ANSWER({ drawCooldownSeconds: 15 }));
+      await openForm();
+      type('Attesa tra le estrazioni', '15');
+      type('Motivo', 'x');
+      screen.getByLabelText('Motivo').focus();
+
+      save();
+
+      await waitFor(() => expect(adminService.updateSettings).toHaveBeenCalled());
+      expect(screen.getByLabelText('Attesa tra le estrazioni')).not.toHaveFocus();
     });
 
     test('two submissions in a row send one request', async () => {

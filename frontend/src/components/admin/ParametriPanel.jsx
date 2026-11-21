@@ -34,9 +34,19 @@ function ParametriPanel({ onForbidden }) {
   const [sending, setSending] = useState(false);
   // A double tap must not send it twice: the ref answers at once, the state would not
   const inFlight = useRef(false);
+  // After a failed check the focus goes to the first field with a problem: on a phone the form is several
+  // screens tall and "Salva" is at the bottom, so the error could be out of sight
+  const formRef = useRef(null);
+  const [eccoErrori, setEccoErrori] = useState(0);
 
   const loading = outcome?.key !== reloads;
   const error = loading ? null : outcome.error;
+
+  useEffect(() => {
+    if (eccoErrori > 0) {
+      formRef.current?.querySelector('[aria-invalid="true"]')?.focus();
+    }
+  }, [eccoErrori]);
 
   useEffect(() => {
     let current = true;
@@ -120,6 +130,7 @@ function ParametriPanel({ onForbidden }) {
     const problemi = verifica();
     setErrori(problemi);
     if (Object.keys(problemi).length > 0) {
+      setEccoErrori((n) => n + 1);
       return;
     }
 
@@ -149,7 +160,7 @@ function ParametriPanel({ onForbidden }) {
   };
 
   return (
-    <form noValidate onSubmit={salva} className="space-y-5">
+    <form ref={formRef} noValidate onSubmit={salva} className="space-y-5">
       <p className="rounded-xl border-2 border-oro/60 bg-oro/10 p-3 text-sm text-testo [overflow-wrap:anywhere]">
         Le modifiche valgono solo per le partite create dopo: quelle in attesa o in corso continuano con i
         parametri che avevano.
@@ -176,7 +187,8 @@ function ParametriPanel({ onForbidden }) {
             type="button"
             variant="secondary"
             fullWidth
-            aria-label={`Ripristina ${etichetta}`}
+            // The name starts with the text that is seen on the button, and says which field it is for
+            aria-label={`Ripristina predefinito: ${etichetta}`}
             disabled={campi[chiave] === String(defaults[chiave])}
             onClick={() => scrivi(chiave, String(defaults[chiave]))}
           >
