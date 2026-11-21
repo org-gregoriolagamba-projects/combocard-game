@@ -5,6 +5,7 @@
  */
 
 import { GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+import { settingsOfGame } from "./settings.service.js";
 
 /**
  * The game, still waiting or in progress, that a player is in. A player is in one game at a time:
@@ -228,6 +229,8 @@ export function gameViewFor(game, playerId) {
 
   return {
     ...visible,
+    // The settings the game plays by: a game saved before they existed gets the values of today
+    settings: settingsOfGame(game),
     // A choice that has run out of time is already over, whoever reads the game
     jollyInCorso: jollyInCorso && jollyInCorso.scadenza > Date.now() ? jollyInCorso : null,
     carteRimaste: mazzo.length,

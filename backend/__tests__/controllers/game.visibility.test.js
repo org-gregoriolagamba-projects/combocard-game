@@ -92,6 +92,17 @@ describe('game visibility', () => {
       expect(game.carteRimaste).toBe(0);
     });
 
+    test('the game of the answers carries the settings it was created with, and still no deck', async () => {
+      const created = await call(createGame, anna.id, { body: { requiredCredits: 100 } });
+      const read = await call(getGame, anna.id, { params: { gameId: created.gameId } });
+
+      for (const game of [created.game, read]) {
+        expect(game.settings).toEqual(gameState.games[created.gameId].settings);
+        expect(game.settings).toHaveProperty('drawCooldownSeconds');
+        expect(game).not.toHaveProperty('mazzo');
+      }
+    });
+
     test('reading a game hides the deck and shows how many cards are left', async () => {
       const { gameId } = await startedGame();
 
