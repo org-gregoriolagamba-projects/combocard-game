@@ -9,7 +9,7 @@ src/
 ├── components/           # React components
 │   ├── common/          # Reusable UI components (Button, Input, Modal, Toast, etc.)
 │   └── game/            # Game-specific components (GameScreen, HallScreen, etc.)
-├── config/              # Configuration (API URLs, constants)
+├── config/              # Configuration (API URLs, constants, labels of the game settings)
 ├── hooks/               # Custom React hooks (useSocket, useToast)
 ├── pages/               # Page components (HomePage)
 ├── services/            # API service layer (api, socket, player, game services)
@@ -74,6 +74,10 @@ The app uses Redux Toolkit with the following slices:
 - `Cartella` - Player's 5x5 card grid
 - `CollezioniPanel` - Collections progress and claims
 - `PlayersList` - List of players in game
+
+### Admin Components
+- `AdminScreen` - The admin area: users, games, statistics, audit log and game settings (tabs)
+- `ParametriPanel` - The "Parametri" tab: one form for the six game settings, with the reason that goes in the audit log
 
 ## Environment Variables
 

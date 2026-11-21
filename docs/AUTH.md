@@ -120,6 +120,8 @@ Il frontend lo tiene in `state.player.role` e lo usa soltanto per decidere cosa 
 | `GET /api/admin/stats` | Numeri della piattaforma, senza nomi: utenti registrati, in partita ora e admin; partite in attesa, in corso, finite e annullate; crediti in circolazione e nel montepremi delle partite in corso; montepremi distribuiti |
 | `GET /api/admin/audit?targetId=&page=&limit=` | Il registro delle azioni, dalla più recente, filtrabile per utente |
 
+La scheda «Parametri» della schermata Amministrazione usa le due route `/api/admin/settings`: un modulo con tutti e sei i parametri e un solo motivo, che manda solo i valori cambiati. Il server resta l'autorità (limiti e `maxPlayers >= minPlayers` sul risultato unito); la schermata controlla gli stessi limiti per mostrare l'errore nel campo, e mostra tradotto il messaggio del server se rifiuta.
+
 - Chi agisce è sempre l'admin del token: un `actor` scritto nel corpo viene ignorato, come ogni campo sconosciuto.
 - **Un admin può rettificare anche i propri crediti** e quelli di altri admin, sempre con motivo e traccia (nel registro attore e bersaglio coincidono). Il divieto di accreditarsi da soli non protegge nulla finché la Cassa dà crediti gratis a chiunque: da rivedere se i crediti avranno mai un valore reale.
 - Sospensione, riabilitazione e chiusura delle sessioni cambiano l'account e scrivono la riga di audit (`user_suspended`, `user_unsuspended`, `sessions_revoked`, con il motivo) in un'unica transazione; se il database non risponde non cambia nulla e la risposta è `503`.

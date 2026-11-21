@@ -114,6 +114,7 @@ Six parameters of the game are not constants of the code: an admin changes them 
 - **The creator's choices stay inside the settings.** The fee of a game is from 1 to 10,000 (without it, the current `requiredCredits`) and its maximum of players is from the current `minPlayers` to the current `maxPlayers`; a fee of 0 is a `400`.
 - **Where the server reads them.** `gameState.settings` is loaded at startup and changed only after the store has written the change. Every logged-in user reads them from `GET /api/settings`, with the limits and the defaults.
 - **The app reads them, it does not repeat them.** After the login, and every time the hall or the new game form opens, the app reads `GET /api/settings` (the `settings` slice): the form takes the interval of the players and the limits of the fee from there (the old minimum of 10 credits is gone: the server accepts from 1), and the rules say the players and the wait they really have. A game is played by its own copy (`game.settings`, which the view of the game always carries): the wait after a draw, the time to choose the Jolly and the players needed to start come from it. If the settings cannot be read the screens say so and offer "Riprova": no number is invented.
+- **The admin changes them from the admin screen.** The "Parametri" tab of the Amministrazione screen is one form with the six parameters (the current value, the interval and the default of each, a "Ripristina" for each field) and one reason, which is required and goes in the audit log. It sends only the values that changed; the minimum and the maximum of the players can be changed together. A notice says that a change is for the games created after it. If the server refuses, the fields stay as written and the saved values do not change. Every change is a sentence in the "Registro" tab.
 - **A draw that comes too soon** is answered with `429` and `retryAfter`: the screen starts the wait again from those seconds, so it stays aligned with the server even after a pause of the Jolly.
 - **Without a database** the settings start from the defaults (the wait from `DRAW_COOLDOWN_SECONDS`, if it is inside its interval) and are lost at restart.
 
@@ -212,6 +213,6 @@ Already done: persistence on PostgreSQL, accounts with sessions, player history 
 - [ ] Global leaderboards
 - [ ] Password recovery
 - [ ] Private rooms created and managed by the users
-- [ ] Game parameters changeable by an admin: the six of the game settings can be changed through the API; the screens (reading them in the app, and the admin screen), the time limit of a turn and the prize shares are still to do
+- [ ] Other game parameters changeable by an admin: the six of the game settings are done (API, app and admin screen); the time limit of a turn and the prize shares are still to do
 - [ ] Tournament mode
 - [ ] Mobile app (React Native)
