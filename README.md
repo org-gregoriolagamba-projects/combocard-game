@@ -25,7 +25,7 @@ Each player has one Jolly card that can be converted to any card needed to compl
 - **Max players** per game (2–10) with **auto-start** when the table is full
 - **Drawing by turns**: the creator chooses who draws, every player in turn (default in the app) or only the creator. The player on turn has 60 seconds, with a countdown for everybody and beeps in the last five seconds; if the time runs out the card is drawn automatically and the player gets a yellow card, then a red card (no more draws until the end of the game)
 - **Draw cooldown**: 8-second delay between card draws, kept by the server (a draw too soon gets a 429)
-- **Game settings** (players, entry fee, Jolly, wait between draws) changeable by an admin, with a reason and an audit trail; each game keeps the settings it was created with
+- **Game settings** (players, entry fee, Jolly, wait between draws) changeable by an admin, with a reason and an audit trail; each game keeps the settings it was created with; the app reads them from the server (new game form, wait between draws, Jolly countdown, rules) and never repeats the numbers
 - **Sounds**: the creator can switch the game sounds on or off, and each player can mute them
 - **Zoom** of the cards of the sheet and of the drawn ones, and an **history and personal statistics** page for each player
 - **Remaining prize distribution**: undistributed prizes are split evenly at game end

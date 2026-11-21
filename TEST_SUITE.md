@@ -45,6 +45,7 @@ combocard-game/
 - **Estrazione a turni.** Giro dei giocatori, attesa tra le estrazioni, tempo limite, cartellino giallo e rosso, giocatori scollegati, riarmo dei timer all'avvio.
 - **Partite.** Creazione (anche privata, con codice), ingresso, avvio automatico a tavolo pieno, uscita, regole da confermare, una partita alla volta.
 - **Crediti e premi.** Acquisto, quote d'ingresso, premi per collezione, premi non assegnati, rimborsi.
+- **Parametri di gioco nel frontend.** Lettura dal server (stato, ultima richiesta che vince, errore con «Riprova»), modulo «Crea partita» con i limiti del server, sala d'attesa, attesa tra le estrazioni dalla partita e `429` con `retryAfter`, durata del Jolly, regole con i numeri (o senza), e a 320 e 180 px il modulo senza scorrimento orizzontale.
 - **Parametri di gioco.** Intervalli (nel servizio e nei `CHECK` del database), modifica con motivo e riga di audit, solo l'admin, copia nella partita, attesa tra le estrazioni imposta dal server (`429`) con la pausa del Jolly.
 - **Visibilità.** Nessuna risposta o evento contiene il mazzo o la cartella di un altro giocatore.
 - **Account e area admin.** Registrazione, sessioni, cambio e reimpostazione della password, sospensione, eliminazione, ruoli, registro delle azioni.

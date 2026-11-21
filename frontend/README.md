@@ -14,7 +14,7 @@ src/
 ├── pages/               # Page components (HomePage)
 ├── services/            # API service layer (api, socket, player, game services)
 ├── store/               # Redux store and slices
-│   └── slices/          # Redux slices (playerSlice, gameSlice, uiSlice)
+│   └── slices/          # Redux slices (playerSlice, gameSlice, uiSlice, settingsSlice)
 ├── styles/              # CSS styles
 ├── utils/               # Utility functions
 ├── App.jsx              # Main app with Redux Provider
@@ -56,6 +56,7 @@ The app uses Redux Toolkit with the following slices:
 - **playerSlice**: Player registration, credits, authentication
 - **gameSlice**: Game state, current game, drawing cards, collections
 - **uiSlice**: UI state (current screen, toasts, modals)
+- **settingsSlice**: The game settings read from the server (`GET /api/settings`: players, entry fee, Jolly, wait between draws), with their limits; read after the login and whenever the hall or the new game form opens, never invented when they cannot be read
 
 ## Components
 
