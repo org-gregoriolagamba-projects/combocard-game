@@ -9,13 +9,19 @@
 
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import * as settingsService from "../../services/settingsService";
+import { translateServerError } from "../../utils/errors.utils";
 import { clearPlayer, logout } from "./playerSlice";
 
 export const fetchSettings = createAsyncThunk(
   "settings/fetch",
   async (_, { rejectWithValue }) => {
     try {
-      return await settingsService.getSettings();
+      const answer = await settingsService.getSettings();
+      // An answer that is not the settings is a failure to show, not numbers to guess
+      if (!answer?.values || !answer?.limits) {
+        return rejectWithValue(translateServerError(undefined));
+      }
+      return answer;
     } catch (error) {
       return rejectWithValue(error.message);
     }

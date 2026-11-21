@@ -7,6 +7,10 @@
 
 import settingsReducer, { clearSettings, fetchSettings } from '../../store/slices/settingsSlice';
 import { clearPlayer, logout } from '../../store/slices/playerSlice';
+import { createTestStore } from '../test-utils';
+import * as settingsService from '../../services/settingsService';
+
+vi.mock('../../services/settingsService');
 
 const initial = { values: null, limits: null, status: 'idle', error: null, requestId: null };
 const VALUES = { minPlayers: 2, maxPlayers: 10, requiredCredits: 100, jollyHoldSeconds: 30, jollyMaxDeclarations: 3, drawCooldownSeconds: 8 };
@@ -77,5 +81,30 @@ describe('settingsSlice', () => {
     ['logout.rejected', logout.rejected(null, 'r')],
   ])('%s empties the settings', (_name, action) => {
     expect(settingsReducer(readyState(), action)).toEqual(initial);
+  });
+});
+
+describe('fetchSettings, with the service', () => {
+  test.each([
+    ['nothing', undefined],
+    ['an answer without the values', { limits: LIMITS }],
+    ['an answer without the limits', { values: VALUES }],
+  ])('%s is an error to show, not a crash', async (_name, answerOfTheServer) => {
+    settingsService.getSettings.mockResolvedValue(answerOfTheServer);
+    const store = createTestStore();
+
+    await store.dispatch(fetchSettings());
+
+    expect(store.getState().settings).toMatchObject({ values: null, status: 'error' });
+    expect(store.getState().settings.error).toMatch(/riprova/i);
+  });
+
+  test('a good answer fills the state', async () => {
+    settingsService.getSettings.mockResolvedValue(answer());
+    const store = createTestStore();
+
+    await store.dispatch(fetchSettings());
+
+    expect(store.getState().settings).toMatchObject({ values: VALUES, limits: LIMITS, status: 'ready' });
   });
 });
