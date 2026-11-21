@@ -19,6 +19,7 @@ import {
   cancelJollyChoice,
 } from '../../src/controllers/game.controller.js';
 import { riarmaTurni } from '../../src/services/estrazione.service.js';
+import { legacySettings } from '../../src/services/settings.service.js';
 import { registerPlayer, buyCredits, acceptRules } from '../../src/services/player.service.js';
 import { createMemoryStore } from '../../src/db/store.js';
 import config from '../../src/config/index.js';
@@ -128,12 +129,23 @@ describe('drawing by turns', () => {
       }
     });
 
-    test('the wait between draws is kept by the server: too soon is refused with 409', async () => {
+    test('the wait between draws is kept by the server: too soon is refused with 429', async () => {
       const { gameId, game } = await newGame(['Anna', 'Carlo']);
 
-      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 409 });
+      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 429 });
       await avanza(COOLDOWN - 1);
-      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 409 });
+      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 429 });
+      await avanza(1);
+      await expect(draw(game.turno.playerId, gameId)).resolves.toBeDefined();
+    });
+
+    test('the wait is the one of the game, and the 429 says how many seconds are left', async () => {
+      gameState.settings = { ...legacySettings(), drawCooldownSeconds: 5 };
+      const { gameId, game } = await newGame(['Anna', 'Carlo']);
+
+      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 429, retryAfter: 5 });
+      await avanza(4_999);
+      await expect(draw(game.turno.playerId, gameId)).rejects.toMatchObject({ statusCode: 429, retryAfter: 1 });
       await avanza(1);
       await expect(draw(game.turno.playerId, gameId)).resolves.toBeDefined();
     });
@@ -339,6 +351,8 @@ describe('drawing by turns', () => {
 
       await expect(draw(players[1].id, gameId)).rejects.toMatchObject({ statusCode: 403 });
       await draw(players[0].id, gameId);
+      // the wait between draws is kept by the server in this mode too
+      await avanza(COOLDOWN);
       await draw(players[0].id, gameId);
       await avanza(TURNO * 3);
 

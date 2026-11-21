@@ -33,6 +33,7 @@ import {
   sospendiTurno,
   usaTurni,
   verificaAttesa,
+  verificaEImpostaAttesaClassica,
   verificaTurno,
 } from "../services/estrazione.service.js";
 import { playerRoom } from "../sockets/index.js";
@@ -372,6 +373,8 @@ export const drawCard = asyncHandler(async (req, res) => {
 
   if (usaTurni(game)) {
     verificaAttesa(game);
+  } else {
+    verificaEImpostaAttesaClassica(game, req.gameState);
   }
 
   const cartaEstratta = await eseguiEstrazione(game, gameId, {

@@ -17,6 +17,7 @@ import { AppError } from "../utils/AppError.js";
 import { shuffleArray } from "../utils/card.utils.js";
 import { GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
 import config from "../config/index.js";
+import { settingsOfGame } from "./settings.service.js";
 import { autoClaimCollezioni } from "./game.service.js";
 import { CREDIT_MOVEMENT, trackCredits, saveGameSafely } from "./persistence.service.js";
 import { playerRoom } from "../sockets/index.js";
@@ -30,7 +31,8 @@ const timersSospensione = new Map();
 // What a timer needs when it fires: { io, gameState, getStore }, renewed at every request
 const contesti = new Map();
 
-const attesaMs = () => config.drawCooldownSeconds * 1000;
+// The wait between two draws: the one the game was created with (see settings.service.js)
+const attesaMs = (game, gameState = {}) => settingsOfGame(game, gameState).drawCooldownSeconds * 1000;
 const limiteMs = () => config.drawTurnSeconds * 1000;
 
 // The turn is stopped by a pause of the jolly: it remembers when (a number) or not (null)
@@ -91,7 +93,7 @@ function prossimoEstrattore(game, ctx) {
 function assegnaTurno(game, ctx, { mantieniAttesa = false } = {}) {
   const adesso = Date.now();
   const playerId = prossimoEstrattore(game, ctx);
-  const attesaFino = mantieniAttesa && game.turno ? game.turno.attesaFino : adesso + attesaMs();
+  const attesaFino = mantieniAttesa && game.turno ? game.turno.attesaFino : adesso + attesaMs(game, ctx.gameState);
   game.turno = {
     playerId,
     attesaFino,
@@ -232,12 +234,34 @@ export function verificaTurno(game, playerId) {
   }
 }
 
+// A draw that comes too soon: 429, with the seconds that are left
+function attesaTroppoBreve(residuo) {
+  const secondi = Math.ceil(residuo / 1000);
+  return Object.assign(new AppError(`Wait ${secondi} seconds before drawing`, 429), { retryAfter: secondi });
+}
+
 /** The draws wait a few seconds from each other; the server keeps the wait */
 export function verificaAttesa(game) {
   const residuo = game.turno.attesaFino - Date.now();
   if (residuo > 0) {
-    throw new AppError(`Wait ${Math.ceil(residuo / 1000)} seconds before drawing`, 409);
+    throw attesaTroppoBreve(residuo);
   }
+}
+
+/**
+ * The classic mode (the creator draws) keeps the same wait. It is checked and started in one step,
+ * before anything that waits (the saving of the draw): two clicks at the same time cannot both pass.
+ * @param {Object} game - The game
+ * @param {Object} gameState - Global game state
+ * @throws {AppError} 429 if the wait is not over
+ */
+export function verificaEImpostaAttesaClassica(game, gameState) {
+  const adesso = Date.now();
+  const residuo = (game.attesaFino ?? 0) - adesso;
+  if (residuo > 0) {
+    throw attesaTroppoBreve(residuo);
+  }
+  game.attesaFino = adesso + attesaMs(game, gameState);
 }
 
 /** The first turn of a game that has just started */
@@ -269,6 +293,11 @@ export function cambiaEstrattore(game, gameId, ctx) {
  * when the player's time to choose runs out (`fineScelta`, in ms).
  */
 export function sospendiTurno(game, gameId, fineScelta) {
+  if (!usaTurni(game)) {
+    // Classic mode: the wait does not run during the pause; it is given back when the pause is over
+    game.attesaSospesa = { da: Date.now(), fino: fineScelta };
+    return;
+  }
   const ctx = contesti.get(gameId);
   if (!usaTurni(game) || !game.turno || inSospeso(game.turno) || !ctx) {
     return;
@@ -292,6 +321,15 @@ export function sospendiTurno(game, gameId, fineScelta) {
 
 /** The jolly is over: the time limit goes on from where it stopped */
 export function riprendiTurno(game, gameId) {
+  if (!usaTurni(game)) {
+    // The pause counts up to the end of the time to choose, even if the request that ends it comes later
+    const sospesa = game.attesaSospesa;
+    game.attesaSospesa = null;
+    if (sospesa && game.attesaFino) {
+      game.attesaFino += Math.max(0, Math.min(Date.now(), sospesa.fino) - sospesa.da);
+    }
+    return;
+  }
   const ctx = contesti.get(gameId);
   if (!usaTurni(game) || !game.turno || !inSospeso(game.turno) || !ctx) {
     return;
