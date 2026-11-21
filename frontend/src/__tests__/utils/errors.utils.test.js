@@ -100,4 +100,34 @@ describe('translateServerError', () => {
     expect(translateServerError('Route /api/x not found')).toBe('Qualcosa non ha funzionato: riprova tra poco');
     expect(translateServerError(undefined)).toBe('Qualcosa non ha funzionato: riprova tra poco');
   });
+
+  describe('the game settings of the admin', () => {
+    test.each([
+      ['Storage temporarily unavailable, please try again', 'Non sono riuscito a salvare: riprova tra poco'],
+      ['Too many changes to the settings, please try again later.', 'Troppe modifiche in poco tempo: riprova fra un minuto'],
+      ['maxPlayers cannot be below minPlayers', 'I giocatori massimi non possono essere meno dei minimi'],
+    ])('"%s" is shown as "%s"', (english, italian) => {
+      expect(translateServerError(english)).toBe(italian);
+    });
+
+    test.each([
+      ['drawCooldownSeconds must be a whole number from 3 to 30', 'Attesa tra le estrazioni: da 3 a 30'],
+      ['requiredCredits must be a whole number from 1 to 10000', "Quota d'ingresso predefinita: da 1 a 10000"],
+      ['"values.drawCooldownSeconds" must be less than or equal to 30', 'Attesa tra le estrazioni: al massimo 30'],
+      ['"values.jollyHoldSeconds" must be greater than or equal to 10', 'Pausa del Jolly: almeno 10'],
+      ['"values.requiredCredits" must be an integer', "Quota d'ingresso predefinita: scrivi un numero intero"],
+      ['"values.minPlayers" must be a number', 'Giocatori minimi per avviare: scrivi un numero intero'],
+    ])('the range of a setting, with its label: %s', (english, italian) => {
+      expect(translateServerError(english)).toBe(italian);
+    });
+
+    test('when the server joins several messages, the first one it knows is translated', () => {
+      expect(translateServerError('"values.minPlayers" must be greater than or equal to 2, "reason" is not allowed to be empty'))
+        .toBe('Giocatori minimi per avviare: almeno 2');
+    });
+
+    test('a setting it does not know is shown with its key', () => {
+      expect(translateServerError('"values.cheat" must be an integer')).toBe('cheat: scrivi un numero intero');
+    });
+  });
 });

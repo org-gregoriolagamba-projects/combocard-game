@@ -83,4 +83,16 @@ describe('adminService', () => {
     expect(api.get).toHaveBeenNthCalledWith(1, '/admin/audit?page=3&limit=20');
     expect(api.get).toHaveBeenNthCalledWith(2, '/admin/audit?targetId=p1&page=1&limit=20');
   });
+
+  test('getSettings reads the game settings, with their limits and defaults', async () => {
+    await expect(adminService.getSettings()).resolves.toBe('answer');
+
+    expect(api.get).toHaveBeenCalledWith('/admin/settings');
+  });
+
+  test('updateSettings sends the values to change and the reason, and gives back the new settings', async () => {
+    await expect(adminService.updateSettings({ values: { drawCooldownSeconds: 12 }, reason: 'più tempo' })).resolves.toBe('answer');
+
+    expect(api.patch).toHaveBeenCalledWith('/admin/settings', { values: { drawCooldownSeconds: 12 }, reason: 'più tempo' });
+  });
 });

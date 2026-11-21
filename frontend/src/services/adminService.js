@@ -156,3 +156,24 @@ export const getStats = async () => {
   const response = await api.get("/admin/stats");
   return response.data;
 };
+
+/**
+ * The game settings: the values in force, the interval of each one, the defaults, and when and by whom
+ * they were last changed
+ * @returns {Promise<Object>} { values, limits, defaults, updatedAt, updatedBy }
+ */
+export const getSettings = async () => {
+  const response = await api.get("/admin/settings");
+  return response.data;
+};
+
+/**
+ * Change some of the game settings, with the reason that goes in the audit log. Only what is sent changes;
+ * the server refuses a value outside its interval and a maximum of players below the minimum.
+ * @param {Object} change - { values: { key: number }, reason }
+ * @returns {Promise<Object>} The settings after the change: { values, limits, defaults, updatedAt, updatedBy }
+ */
+export const updateSettings = async ({ values, reason }) => {
+  const response = await api.patch("/admin/settings", { values, reason });
+  return response.data;
+};

@@ -52,12 +52,12 @@ describe('AdminScreen: the audit log', () => {
     return view;
   };
 
-  test('has four tabs, the users first and the log last', async () => {
+  test('has five tabs, the users first and the settings last', async () => {
     renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
 
     const tabs = await screen.findAllByRole('tab');
 
-    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(adminService.listAudit).not.toHaveBeenCalled();
   });
@@ -128,5 +128,45 @@ describe('AdminScreen: the audit log', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Utenti' }));
 
     expect(await screen.findByRole('list', { name: 'Utenti' })).toBeInTheDocument();
+  });
+
+  describe('the changes of the game settings', () => {
+    const settings = (id, details, who = {}) => event(id, 'settings_changed', details, { targetId: null, targetName: null, ...who });
+
+    test('are told with what changed, from what to what, and the reason', async () => {
+      adminService.listAudit.mockResolvedValue(pageOf([
+        settings(21, { changes: { drawCooldownSeconds: { from: 8, to: 12 } }, reason: 'più tempo' }),
+        settings(22, { changes: { minPlayers: { from: 2, to: 3 }, maxPlayers: { from: 10, to: 8 } }, reason: 'tavoli piccoli' }),
+      ]));
+
+      const { list } = await openRegistro();
+
+      const sentences = within(list).getAllByRole('listitem').map((li) => li.textContent);
+      expect(sentences[0]).toContain('Dario ha cambiato i parametri di gioco: Attesa tra le estrazioni da 8 a 12 secondi: «più tempo»');
+      expect(sentences[1]).toContain(
+        'Dario ha cambiato i parametri di gioco: Giocatori minimi per avviare da 2 a 3 giocatori; Giocatori massimi da 10 a 8 giocatori: «tavoli piccoli»',
+      );
+    });
+
+    test('a setting that is not known is told with its key', async () => {
+      adminService.listAudit.mockResolvedValue(pageOf([settings(23, { changes: { cheat: { from: 1, to: 2 } }, reason: 'x' })]));
+
+      const { list } = await openRegistro();
+
+      expect(within(list).getAllByRole('listitem')[0]).toHaveTextContent('Dario ha cambiato i parametri di gioco: cheat da 1 a 2: «x»');
+    });
+
+    test('details without the list of the changes still make a sentence, and the system can be the one who acts', async () => {
+      adminService.listAudit.mockResolvedValue(pageOf([
+        settings(24, { reason: 'motivo' }),
+        settings(25, { changes: { requiredCredits: { from: 100, to: 150 } }, reason: 'script' }, { actorType: 'system', actorId: null, actorName: null }),
+      ]));
+
+      const { list } = await openRegistro();
+
+      const sentences = within(list).getAllByRole('listitem').map((li) => li.textContent);
+      expect(sentences[0]).toContain('Dario ha cambiato i parametri di gioco: «motivo»');
+      expect(sentences[1]).toContain("Il sistema ha cambiato i parametri di gioco: Quota d'ingresso predefinita da 100 a 150 crediti: «script»");
+    });
   });
 });
