@@ -22,8 +22,25 @@ const GUIDA_LETTA = () => window.localStorage.setItem('combocard.guida-letta', '
 test.skip(({ browserName }) => browserName !== 'chromium', 'The layout is measured on Chromium');
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
-/** A started game with two players, six cards already drawn */
-async function startedGame(request) {
+/**
+ * The wait between two draws, as the server says it (an admin can change it): a draw that comes sooner is a 429
+ * @param {APIRequestContext} request - Playwright request context
+ * @param {Object} player - Any logged-in player
+ * @returns {Promise<number>} Milliseconds
+ */
+async function drawWaitMs(request, player) {
+  const response = await request.get(`${API_URL}/api/settings`, { headers: player.headers });
+  return (await response.json()).data.values.drawCooldownSeconds * 1000;
+}
+
+/**
+ * A started game with two players and some cards already drawn. The server keeps the wait between draws
+ * (the first is free), so every further card costs that wait: ask only for the cards the test needs.
+ * @param {APIRequestContext} request - Playwright request context
+ * @param {Object} [options]
+ * @param {number} [options.cards=1] - Cards to draw before the test starts
+ */
+async function startedGame(request, { cards = 1 } = {}) {
   const creator = await registerPlayer(request, API_URL, 'Creatore');
   const guest = await registerPlayer(request, API_URL, 'Ospite');
   for (const player of [creator, guest]) {
@@ -39,8 +56,13 @@ async function startedGame(request) {
     await request.post(`${API_URL}/api/games/${gameId}/join`, { headers: player.headers });
   }
   await request.post(`${API_URL}/api/games/${gameId}/start`, { headers: creator.headers });
-  for (let i = 0; i < 6; i += 1) {
-    await request.post(`${API_URL}/api/games/${gameId}/draw`, { headers: creator.headers });
+  const wait = cards > 1 ? await drawWaitMs(request, creator) : 0;
+  for (let i = 0; i < cards; i += 1) {
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, wait + 300));
+    }
+    const drawn = await request.post(`${API_URL}/api/games/${gameId}/draw`, { headers: creator.headers });
+    expect(drawn.status(), `draw ${i + 1}`).toBe(200);
   }
 
   return { creator, guest };
@@ -194,19 +216,19 @@ test.describe('Game screen on a phone @mobile', () => {
   });
 
   test('the cards already drawn are in a section that opens, latest first, and the screen does not move', async ({ page, request }) => {
-    const { guest } = await startedGame(request);
+    const { guest } = await startedGame(request, { cards: 3 });
     await signIn(page, guest);
     const barBefore = await page.getByTestId('barra-azione').boundingBox();
     const tableTop = () => page.getByRole('table').evaluate((el) => Math.round(el.getBoundingClientRect().top + window.scrollY));
     const tableBefore = await tableTop();
 
     const toggle = page.getByRole('button', { name: /Carte uscite/ });
-    await expect(toggle).toContainText('6 su 40');
+    await expect(toggle).toContainText('3 su 40');
     expect((await toggle.boundingBox()).height).toBeGreaterThanOrEqual(44);
     await toggle.click();
 
     const panel = page.locator(`#${await toggle.getAttribute('aria-controls')}`);
-    await expect(panel.getByRole('listitem')).toHaveCount(6);
+    await expect(panel.getByRole('listitem')).toHaveCount(3);
     expect(await panel.getByRole('listitem').first().textContent()).toMatch(NOME_CARTA);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(await page.getByTestId('barra-azione').boundingBox()).toEqual(barBefore);
