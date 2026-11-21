@@ -52,9 +52,10 @@ export const buyCreditsSchema = Joi.object({
 
 // Game routes
 export const createGameSchema = Joi.object({
-  requiredCredits: integer.min(0),
+  // The absolute limits of the settings: the current ones can be narrower, and the controller checks them
+  requiredCredits: integer.min(GAME_SETTING_LIMITS.requiredCredits.min).max(GAME_SETTING_LIMITS.requiredCredits.max),
   isPrivate: Joi.boolean().strict(),
-  maxPlayers: integer.min(GAME_DEFAULTS.MIN_PLAYERS).max(GAME_DEFAULTS.MAX_PLAYERS),
+  maxPlayers: integer.min(GAME_SETTING_LIMITS.maxPlayers.min).max(GAME_SETTING_LIMITS.maxPlayers.max),
   // Whether the game has sounds; the creator chooses, and without a choice it has them
   soundsEnabled: Joi.boolean().strict(),
   // Who draws: the creator (classic, the default) or every player in turn

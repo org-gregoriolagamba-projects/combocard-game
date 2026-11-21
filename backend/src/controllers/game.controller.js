@@ -24,6 +24,7 @@ import {
   deleteGameSafely,
 } from "../services/persistence.service.js";
 import { SEMI_EMOJI, VALORI_NUM, GAME_DEFAULTS, GAME_STATUS } from "../config/constants.js";
+import { currentSettings, settingsOfGame } from "../services/settings.service.js";
 import {
   cambiaEstrattore,
   eseguiEstrazione,
@@ -59,7 +60,7 @@ export const getLobby = asyncHandler(async (req, res) => {
       id: g.id,
       requiredCredits: g.requiredCredits,
       playerCount: g.players.length,
-      maxPlayers: g.maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
+      maxPlayers: g.maxPlayers || settingsOfGame(g, req.gameState).maxPlayers,
       creatorName: g.players[0]?.name || "Unknown",
     }));
 
@@ -93,7 +94,12 @@ export const createGame = asyncHandler(async (req, res) => {
     throw new AppError("You are already in another game", 400);
   }
 
-  const credits = requiredCredits || GAME_DEFAULTS.REQUIRED_CREDITS;
+  const settings = currentSettings(req.gameState);
+  if (maxPlayers !== undefined && (maxPlayers < settings.minPlayers || maxPlayers > settings.maxPlayers)) {
+    throw new AppError(`maxPlayers must be from ${settings.minPlayers} to ${settings.maxPlayers}`, 400);
+  }
+
+  const credits = requiredCredits ?? settings.requiredCredits;
   if (player.credits < credits) {
     throw new AppError("Insufficient credits", 400);
   }
@@ -109,7 +115,9 @@ export const createGame = asyncHandler(async (req, res) => {
     soundsEnabled: soundsEnabled ?? true,
     // Who draws: the creator (classic) or every player in turn
     estrazione: estrazione ?? "creatore",
-    maxPlayers: maxPlayers || GAME_DEFAULTS.MAX_PLAYERS,
+    maxPlayers: maxPlayers ?? settings.maxPlayers,
+    // The settings the game is played by: a later change of the admin does not reach it
+    settings: { ...settings },
     status: GAME_STATUS.WAITING,
     mazzo: [],
     carteEstratte: [],
@@ -254,8 +262,9 @@ export const startGame = asyncHandler(async (req, res) => {
     throw new AppError("Game already started", 400);
   }
 
-  if (game.players.length < GAME_DEFAULTS.MIN_PLAYERS) {
-    throw new AppError(`At least ${GAME_DEFAULTS.MIN_PLAYERS} players required`, 400);
+  const { minPlayers } = settingsOfGame(game, req.gameState);
+  if (game.players.length < minPlayers) {
+    throw new AppError(`At least ${minPlayers} players required`, 400);
   }
 
   // Everyone must know how the game works before it starts
@@ -480,7 +489,8 @@ export const startJollyChoice = asyncHandler(async (req, res) => {
     return;
   }
 
-  if ((player.jollyDichiarazioni ?? 0) >= GAME_DEFAULTS.JOLLY_MAX_DECLARATIONS) {
+  const { jollyMaxDeclarations, jollyHoldSeconds } = settingsOfGame(game, req.gameState);
+  if ((player.jollyDichiarazioni ?? 0) >= jollyMaxDeclarations) {
     throw new AppError("Too many jolly declarations in this game", 429);
   }
   player.jollyDichiarazioni = (player.jollyDichiarazioni ?? 0) + 1;
@@ -489,7 +499,7 @@ export const startJollyChoice = asyncHandler(async (req, res) => {
     playerId,
     name: player.name,
     tipo,
-    scadenza: Date.now() + GAME_DEFAULTS.JOLLY_HOLD_MS,
+    scadenza: Date.now() + jollyHoldSeconds * 1000,
   };
 
   req.io.to(gameId).emit("jollyInCorso", game.jollyInCorso);

@@ -78,8 +78,8 @@ describe('buyCreditsSchema', () => {
 });
 
 describe('createGameSchema', () => {
-  test('accepts what the frontend sends, including 0 credits for the default', () => {
-    expect(isValid(createGameSchema, { requiredCredits: 0, isPrivate: false, maxPlayers: 10 })).toBe(true);
+  test('accepts what the frontend sends, inside the absolute limits (the current ones are checked by the controller)', () => {
+    expect(isValid(createGameSchema, { requiredCredits: 1, isPrivate: false, maxPlayers: 10 })).toBe(true);
   });
 
   test('has no required field', () => {
@@ -93,10 +93,12 @@ describe('createGameSchema', () => {
 
   test.each([
     [{ requiredCredits: -1 }],
+    [{ requiredCredits: 0 }],
+    [{ requiredCredits: 10001 }],
+    [{ maxPlayers: 21 }],
     [{ requiredCredits: '100' }],
     [{ requiredCredits: 1.5 }],
     [{ maxPlayers: 1 }],
-    [{ maxPlayers: 11 }],
     [{ isPrivate: 'true' }],
   ])('rejects %j', (body) => {
     expect(isValid(createGameSchema, body)).toBe(false);
