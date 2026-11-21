@@ -52,12 +52,12 @@ describe('AdminScreen: the audit log', () => {
     return view;
   };
 
-  test('has four tabs, the users first and the log last', async () => {
+  test('has five tabs, the users first and the settings last', async () => {
     renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
 
     const tabs = await screen.findAllByRole('tab');
 
-    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(adminService.listAudit).not.toHaveBeenCalled();
   });

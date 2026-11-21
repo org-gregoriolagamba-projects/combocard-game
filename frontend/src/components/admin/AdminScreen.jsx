@@ -1,7 +1,7 @@
 /**
  * AdminScreen Component
  *
- * The admin area: the users (search, name, role, credits), the games, the statistics and the audit log. It is shown only to
+ * The admin area: the users (search, name, role, credits), the games, the statistics, the audit log and the game settings. It is shown only to
  * an admin, but the server decides: a 403 sends the player back to the hall.
  */
 
@@ -14,12 +14,14 @@ import UsersPanel from "./UsersPanel";
 import AuditPanel from "./AuditPanel";
 import GamesPanel from "./GamesPanel";
 import StatsPanel from "./StatsPanel";
+import ParametriPanel from "./ParametriPanel";
 
 const TABS = [
   { id: "utenti", label: "Utenti" },
   { id: "partite", label: "Partite" },
   { id: "statistiche", label: "Statistiche" },
   { id: "registro", label: "Registro" },
+  { id: "parametri", label: "Parametri" },
 ];
 
 function AdminScreen() {
@@ -81,6 +83,7 @@ function AdminScreen() {
           {tab === "partite" && <GamesPanel onForbidden={handleForbidden} />}
           {tab === "statistiche" && <StatsPanel onForbidden={handleForbidden} />}
           {tab === "registro" && <AuditPanel onForbidden={handleForbidden} />}
+          {tab === "parametri" && <ParametriPanel onForbidden={handleForbidden} />}
         </section>
       </div>
     </div>
