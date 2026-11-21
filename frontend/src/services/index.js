@@ -11,3 +11,4 @@ export * as playerService from "./playerService";
 export * as meService from "./meService";
 export * as adminService from "./adminService";
 export * as gameService from "./gameService";
+export * as settingsService from "./settingsService";

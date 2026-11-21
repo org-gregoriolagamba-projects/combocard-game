@@ -10,6 +10,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import playerReducer from '../store/slices/playerSlice';
 import gameReducer from '../store/slices/gameSlice';
 import uiReducer from '../store/slices/uiSlice';
+import settingsReducer from '../store/slices/settingsSlice';
 
 /**
  * Create a test store with optional preloaded state
@@ -20,6 +21,7 @@ export function createTestStore(preloadedState = {}) {
       player: playerReducer,
       game: gameReducer,
       ui: uiReducer,
+      settings: settingsReducer,
     },
     preloadedState,
   });
@@ -45,6 +47,32 @@ export function renderWithProviders(
     ...render(ui, { wrapper: Wrapper, ...renderOptions }),
   };
 }
+
+/**
+ * The game settings as the server gives them, already read: the state of the `settings` slice
+ * for a test that is not about reading them
+ */
+export const readySettings = {
+  values: {
+    minPlayers: 2,
+    maxPlayers: 10,
+    requiredCredits: 100,
+    jollyHoldSeconds: 30,
+    jollyMaxDeclarations: 3,
+    drawCooldownSeconds: 8,
+  },
+  limits: {
+    minPlayers: { min: 2, max: 10 },
+    maxPlayers: { min: 2, max: 20 },
+    requiredCredits: { min: 1, max: 10000 },
+    jollyHoldSeconds: { min: 10, max: 120 },
+    jollyMaxDeclarations: { min: 1, max: 10 },
+    drawCooldownSeconds: { min: 3, max: 30 },
+  },
+  status: 'ready',
+  error: null,
+  requestId: null,
+};
 
 /**
  * Default player state for testing

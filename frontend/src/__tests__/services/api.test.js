@@ -202,3 +202,30 @@ describe('api client: patch and the status of an error', () => {
     await expect(api.get('/admin/users')).rejects.toMatchObject({ status: 403, message: 'Non hai i permessi per farlo' });
   });
 });
+
+describe('api client: the wait of a request that came too soon', () => {
+  let errorSpy;
+
+  beforeEach(() => {
+    setAccessToken(null);
+    global.fetch = vi.fn();
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => errorSpy.mockRestore());
+
+  test('a 429 with the seconds to wait gives an error that carries them, with the status', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(429, { status: 'fail', message: 'Wait 5 seconds before drawing', retryAfter: 5 }));
+
+    await expect(api.post('/games/g1/draw')).rejects.toMatchObject({ status: 429, retryAfter: 5 });
+  });
+
+  test('an error without the seconds has no retryAfter at all', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(400, { status: 'fail', message: 'Game not found' }));
+
+    const error = await api.post('/games/g1/draw').catch((e) => e);
+
+    expect(error.status).toBe(400);
+    expect(error).not.toHaveProperty('retryAfter');
+  });
+});
