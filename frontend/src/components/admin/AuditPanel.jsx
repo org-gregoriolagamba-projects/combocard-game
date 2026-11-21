@@ -8,6 +8,7 @@ import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Button } from "../common";
 import { adminService } from "../../services";
+import { fraseCambio } from "../../config/parametri";
 import Pager from "./Pager";
 
 const PAGE_SIZE = 20;
@@ -42,6 +43,10 @@ export function frase(e) {
     const rimborsati = refunds.reduce((total, r) => total + r.amount, 0);
     const stato = previousStatus === "playing" ? "in corso" : "in attesa";
     return `${chi} ha annullato una partita ${stato}: «${reason}»${rimborsati > 0 ? `, rimborsati ${crediti(rimborsati)}` : ""}`;
+  }
+  if (e.action === "settings_changed") {
+    const cambi = Object.entries(e.details.changes ?? {}).map(([chiave, { from, to }]) => fraseCambio(chiave, from, to));
+    return `${chi} ha cambiato i parametri di gioco: ${cambi.length > 0 ? `${cambi.join("; ")}: ` : ""}«${e.details.reason}»`;
   }
   if (e.action === "user_suspended") {
     return `${chi} ha sospeso ${bersaglio}: «${e.details.reason}»`;
