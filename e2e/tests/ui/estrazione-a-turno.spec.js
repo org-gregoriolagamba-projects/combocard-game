@@ -68,7 +68,7 @@ test.describe('Drawing by turns @turni', () => {
     const notYourTurn = await request.post(`${API_URL}/api/games/${gameId}/draw`, { headers: other.headers });
     expect(notYourTurn.status()).toBe(403);
     const tooSoon = await request.post(`${API_URL}/api/games/${gameId}/draw`, { headers: onTurn.headers });
-    expect(tooSoon.status()).toBe(409);
+    expect(tooSoon.status()).toBe(429);
 
     await new Promise((resolve) => setTimeout(resolve, game.turno.attesaIn + 300));
     const drawn = await request.post(`${API_URL}/api/games/${gameId}/draw`, { headers: onTurn.headers });
