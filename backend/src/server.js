@@ -30,6 +30,7 @@ import { riarmaTurni } from "./services/estrazione.service.js";
 
 // Import persistence
 import { initializePersistence } from "./db/index.js";
+import { loadSettings } from "./services/settings.service.js";
 import { createMemoryStore } from "./db/store.js";
 
 // Import CORS utility
@@ -47,7 +48,7 @@ const gameState = {
 };
 
 // Replaced at startup by the store selected from the configuration
-let store = createMemoryStore();
+let store = createMemoryStore({ drawCooldownSeconds: config.drawCooldownSeconds });
 
 const corsOriginHandler = buildCorsOriginHandler(config.corsOrigin);
 
@@ -164,6 +165,7 @@ const startServer = async () => {
 
   try {
     store = await initializePersistence(gameState);
+    await loadSettings(store, gameState);
   } catch (err) {
     console.error(`❌ Could not initialize the database: ${err.message}`);
     process.exit(1);
