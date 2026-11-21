@@ -13,7 +13,7 @@
  */
 
 import { ACCOUNT_ROLES } from "../config/constants.js";
-import { GAME_SETTING_KEYS, checkGameSettings } from "../config/gameSettings.js";
+import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS, checkGameSettings, defaultGameSettings } from "../config/gameSettings.js";
 
 const DEFAULT_RETRY_DELAY_MS = 5000;
 const PG_UNIQUE_VIOLATION = "23505";
@@ -202,9 +202,18 @@ export function decideRotation(record, graceSeconds, now = new Date()) {
 
 /**
  * Store used when DATABASE_URL is not set: data lives in memory only
+ * @param {Object} [options] - { drawCooldownSeconds }: where the wait between draws starts, when it is
+ *   a whole number inside its interval (the DRAW_COOLDOWN_SECONDS of the environment); the default otherwise
  * @returns {Object} Store with the same interface as the PostgreSQL one
  */
-export function createMemoryStore() {
+export function createMemoryStore({ drawCooldownSeconds } = {}) {
+  const settings = defaultGameSettings();
+  const { min, max } = GAME_SETTING_LIMITS.drawCooldownSeconds;
+  if (Number.isInteger(drawCooldownSeconds) && drawCooldownSeconds >= min && drawCooldownSeconds <= max) {
+    settings.drawCooldownSeconds = drawCooldownSeconds;
+  }
+  let settingsUpdatedAt = null;
+  let settingsUpdatedBy = null;
   const accounts = new Map();
   const refreshTokens = new Map();
   const audit = [];
@@ -412,6 +421,21 @@ export function createMemoryStore() {
     },
     async countAuditEvents({ targetId = null, action = null } = {}) {
       return audit.filter((e) => (!targetId || e.targetId === targetId) && (!action || e.action === action)).length;
+    },
+    async getGameSettings() {
+      return { settings: { ...settings }, updatedAt: settingsUpdatedAt, updatedBy: settingsUpdatedBy };
+    },
+    async updateGameSettings(patch, { actor, reason } = {}) {
+      assertAccountAction(reason, actor);
+      const before = { ...settings };
+      const { after, changed, details } = applySettingsPatch(before, patch);
+      if (changed.length > 0) {
+        Object.assign(settings, after);
+        settingsUpdatedAt = new Date();
+        settingsUpdatedBy = actor.id ?? null;
+        pushAudit(actor, "settings_changed", null, { changes: details, reason: reason.trim() });
+      }
+      return { before, after: { ...after }, changed };
     },
     async cancelGame(game, refunds, { actor, reason } = {}) {
       assertGameCancellation(reason, actor);
