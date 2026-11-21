@@ -79,6 +79,8 @@ test.describe('Game settings @admin', () => {
       { values: { drawCooldownSeconds: 2 }, reason: 'x' },
       { values: { requiredCredits: '150' }, reason: 'x' },
       { values: { cheat: 1 }, reason: 'x' },
+      // a typo next to a valid key must not be dropped in silence while the rest changes
+      { values: { drawCooldownSecond: 12, requiredCredits: 150 }, reason: 'x' },
       { values: { requiredCredits: 150 } },
       { values: {}, reason: 'x' },
     ]) {

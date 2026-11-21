@@ -4,8 +4,9 @@
  * The game settings the admin can change. The server keeps them in `gameState.settings`, loaded at
  * startup from the store and changed only after the store has written the change (so a failed write
  * leaves the old values). Every game takes a copy when it is created: a change reaches the games
- * created afterwards, never the ones already waiting or in progress. A state or a game without
- * settings (saved before they existed, or built by hand in a test) uses the values of today.
+ * created afterwards, never the ones already waiting or in progress. A game without settings (saved
+ * before they existed) keeps the values of today, whatever the admin sets afterwards, and so does a
+ * state without settings (built by hand in a test).
  */
 
 import { AppError } from "../utils/AppError.js";
@@ -39,12 +40,12 @@ export function legacySettings() {
 export const currentSettings = (gameState) => gameState.settings ?? legacySettings();
 
 /**
- * The settings a game plays by: its own copy, or the current ones if it has none
+ * The settings a game plays by: its own copy, or the values of today if it has none (a game saved
+ * before the settings existed must not follow the changes of the admin: it began with other rules)
  * @param {Object} game - The game
- * @param {Object} gameState - Global game state
  * @returns {Object} One value for each key
  */
-export const settingsOfGame = (game, gameState) => game.settings ?? currentSettings(gameState);
+export const settingsOfGame = (game) => game.settings ?? legacySettings();
 
 /**
  * Read the settings from the store into the game state: at startup

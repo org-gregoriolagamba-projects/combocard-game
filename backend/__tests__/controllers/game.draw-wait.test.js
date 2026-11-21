@@ -97,10 +97,10 @@ describe('the wait between draws, drawn by the creator', () => {
     expect(results.find((r) => r.status === 'rejected').reason).toMatchObject({ statusCode: 429 });
   });
 
-  test('a game without settings waits as before', async () => {
+  test('a game without settings waits as before, whatever the admin sets for the new games', async () => {
     const gameId = await startedGame();
     delete gameState.games[gameId].settings;
-    delete gameState.settings;
+    gameState.settings = { ...gameState.settings, drawCooldownSeconds: 30 };
 
     await draw(gameId);
 

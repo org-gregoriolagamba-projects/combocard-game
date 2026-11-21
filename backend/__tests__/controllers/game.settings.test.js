@@ -98,7 +98,7 @@ describe('the settings of a game', () => {
       await expect(call(createGame, anna.id, { body: { maxPlayers: 8 } })).resolves.toBeDefined();
     });
 
-    test('the lobby shows the maximum of each game, and the current one for a game without it', async () => {
+    test('the lobby shows the maximum of each game, and the one of today for a game without it, whatever the admin sets', async () => {
       const { game } = await newGame({ maxPlayers: 5 });
       delete game.maxPlayers;
       delete game.settings;
@@ -106,7 +106,7 @@ describe('the settings of a game', () => {
 
       const [lobby] = await call(getLobby, anna.id);
 
-      expect(lobby.maxPlayers).toBe(7);
+      expect(lobby.maxPlayers).toBe(10);
     });
   });
 
@@ -159,6 +159,22 @@ describe('the settings of a game', () => {
   });
 
   describe('a game without settings, saved before they existed', () => {
+    test('does not follow the changes of the admin: a game in progress at the deploy keeps the rules it had', async () => {
+      const { gameId, game } = await newGame();
+      await call(joinGame, carlo.id, { params: { gameId } });
+      delete game.settings;
+      // the state has settings (it always has, once loaded): the admin changes them after the game began
+      await change({ minPlayers: 3, jollyHoldSeconds: 60, jollyMaxDeclarations: 1 });
+
+      await call(startGame, anna.id, { params: { gameId } });
+      await call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } });
+      await call(cancelJollyChoice, carlo.id, { params: { gameId } });
+
+      expect(game.jollyInCorso).toBeNull();
+      await expect(call(startJollyChoice, carlo.id, { params: { gameId }, body: { tipo: 'tris' } })).resolves.toBeDefined();
+      expect(game.jollyInCorso.scadenza).toBe(now + 30_000);
+    });
+
     test('uses the values of today: the minimum, the time to choose and the declarations', async () => {
       const { gameId, game } = await newGame();
       await call(joinGame, carlo.id, { params: { gameId } });

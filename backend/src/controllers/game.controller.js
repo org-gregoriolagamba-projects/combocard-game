@@ -61,7 +61,7 @@ export const getLobby = asyncHandler(async (req, res) => {
       id: g.id,
       requiredCredits: g.requiredCredits,
       playerCount: g.players.length,
-      maxPlayers: g.maxPlayers || settingsOfGame(g, req.gameState).maxPlayers,
+      maxPlayers: g.maxPlayers || settingsOfGame(g).maxPlayers,
       creatorName: g.players[0]?.name || "Unknown",
     }));
 
@@ -263,7 +263,7 @@ export const startGame = asyncHandler(async (req, res) => {
     throw new AppError("Game already started", 400);
   }
 
-  const { minPlayers } = settingsOfGame(game, req.gameState);
+  const { minPlayers } = settingsOfGame(game);
   if (game.players.length < minPlayers) {
     throw new AppError(`At least ${minPlayers} players required`, 400);
   }
@@ -374,7 +374,7 @@ export const drawCard = asyncHandler(async (req, res) => {
   if (usaTurni(game)) {
     verificaAttesa(game);
   } else {
-    verificaEImpostaAttesaClassica(game, req.gameState);
+    verificaEImpostaAttesaClassica(game);
   }
 
   const cartaEstratta = await eseguiEstrazione(game, gameId, {
@@ -492,7 +492,7 @@ export const startJollyChoice = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { jollyMaxDeclarations, jollyHoldSeconds } = settingsOfGame(game, req.gameState);
+  const { jollyMaxDeclarations, jollyHoldSeconds } = settingsOfGame(game);
   if ((player.jollyDichiarazioni ?? 0) >= jollyMaxDeclarations) {
     throw new AppError("Too many jolly declarations in this game", 429);
   }

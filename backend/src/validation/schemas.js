@@ -115,12 +115,13 @@ export const adminUserActionSchema = Joi.object({
 });
 
 // Some of the game settings, each a whole number inside its interval (a string is not converted), with the
-// reason that goes in the audit log. That the maximum of players is not below the minimum depends on the
+// reason that goes in the audit log. An unknown key is refused here, not dropped by the validate middleware
+// (a typo next to a valid key would vanish while the rest is changed). That the maximum of players is not below the minimum depends on the
 // current values: the service checks it on the result
 export const adminUpdateSettingsSchema = Joi.object({
   values: Joi.object(
     Object.fromEntries(GAME_SETTING_KEYS.map((key) => [key, integer.min(GAME_SETTING_LIMITS[key].min).max(GAME_SETTING_LIMITS[key].max)])),
-  ).min(1).required(),
+  ).min(1).required().prefs({ stripUnknown: false }),
   reason: Joi.string().trim().min(1).max(200).required(),
 });
 

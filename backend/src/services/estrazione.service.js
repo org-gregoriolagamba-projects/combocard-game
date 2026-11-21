@@ -32,7 +32,7 @@ const timersSospensione = new Map();
 const contesti = new Map();
 
 // The wait between two draws: the one the game was created with (see settings.service.js)
-const attesaMs = (game, gameState = {}) => settingsOfGame(game, gameState).drawCooldownSeconds * 1000;
+const attesaMs = (game) => settingsOfGame(game).drawCooldownSeconds * 1000;
 const limiteMs = () => config.drawTurnSeconds * 1000;
 
 // The turn is stopped by a pause of the jolly: it remembers when (a number) or not (null)
@@ -93,7 +93,7 @@ function prossimoEstrattore(game, ctx) {
 function assegnaTurno(game, ctx, { mantieniAttesa = false } = {}) {
   const adesso = Date.now();
   const playerId = prossimoEstrattore(game, ctx);
-  const attesaFino = mantieniAttesa && game.turno ? game.turno.attesaFino : adesso + attesaMs(game, ctx.gameState);
+  const attesaFino = mantieniAttesa && game.turno ? game.turno.attesaFino : adesso + attesaMs(game);
   game.turno = {
     playerId,
     attesaFino,
@@ -252,16 +252,15 @@ export function verificaAttesa(game) {
  * The classic mode (the creator draws) keeps the same wait. It is checked and started in one step,
  * before anything that waits (the saving of the draw): two clicks at the same time cannot both pass.
  * @param {Object} game - The game
- * @param {Object} gameState - Global game state
  * @throws {AppError} 429 if the wait is not over
  */
-export function verificaEImpostaAttesaClassica(game, gameState) {
+export function verificaEImpostaAttesaClassica(game) {
   const adesso = Date.now();
   const residuo = (game.attesaFino ?? 0) - adesso;
   if (residuo > 0) {
     throw attesaTroppoBreve(residuo);
   }
-  game.attesaFino = adesso + attesaMs(game, gameState);
+  game.attesaFino = adesso + attesaMs(game);
 }
 
 /** The first turn of a game that has just started */

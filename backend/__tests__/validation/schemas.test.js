@@ -330,6 +330,16 @@ describe('adminUpdateSettingsSchema', () => {
     expect(isValid(adminUpdateSettingsSchema, body(overrides))).toBe(false);
   });
 
+  test('an unknown key next to a valid one is refused by the middleware, not dropped in silence', () => {
+    // The middleware strips unknown fields: here a typo would otherwise vanish while the rest is changed
+    const next = jest.fn();
+    const req = { body: { values: { drawCooldownSecond: 12, minPlayers: 3 }, reason: 'x' } };
+
+    validate(adminUpdateSettingsSchema)(req, {}, next);
+
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 400, message: expect.stringContaining('drawCooldownSecond') });
+  });
+
   test('the message of a value outside its interval names the key', () => {
     const { error } = adminUpdateSettingsSchema.validate(body({ values: { drawCooldownSeconds: 31 } }));
 

@@ -32,16 +32,16 @@ describe('settings service', () => {
     test('the values of today for a state or a game without settings', () => {
       expect(legacySettings()).toEqual(DEFAULTS);
       expect(currentSettings(gameState)).toEqual(DEFAULTS);
-      expect(settingsOfGame({ id: 'g1' }, gameState)).toEqual(DEFAULTS);
+      expect(settingsOfGame({ id: 'g1' })).toEqual(DEFAULTS);
     });
 
-    test('the settings of the state once loaded, and the own settings of a game before those', async () => {
+    test('the state follows the settings once loaded; a game keeps its own copy, or the values of today if it has none', async () => {
       await store.updateGameSettings({ requiredCredits: 150 }, { actor, reason: 'x' });
       await loadSettings(store, gameState);
 
       expect(currentSettings(gameState).requiredCredits).toBe(150);
-      expect(settingsOfGame({ id: 'g1' }, gameState).requiredCredits).toBe(150);
-      expect(settingsOfGame({ id: 'g2', settings: { ...DEFAULTS, requiredCredits: 120 } }, gameState).requiredCredits).toBe(120);
+      expect(settingsOfGame({ id: 'g1' }).requiredCredits).toBe(100);
+      expect(settingsOfGame({ id: 'g2', settings: { ...DEFAULTS, requiredCredits: 120 } }).requiredCredits).toBe(120);
     });
 
     test('after a restart the values come back from the store', async () => {
