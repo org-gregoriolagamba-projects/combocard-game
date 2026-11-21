@@ -110,7 +110,10 @@ All the routes except `/api/auth` and `/api/health` need `Authorization: Bearer 
 - `GET /api/health/detailed` - Health check with details
 
 ### Admin
-Under `/api/admin`, for admin accounts only: see [../docs/AUTH.md](../docs/AUTH.md).
+Under `/api/admin`, for admin accounts only (users, games, game settings, statistics, audit log): see [../docs/AUTH.md](../docs/AUTH.md).
+
+### Settings
+- `GET /api/settings` - The game settings in force, with their limits and defaults (any logged-in user)
 
 ## Socket Events
 

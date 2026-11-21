@@ -17,7 +17,8 @@ Senza `TEST_DATABASE_URL` i test del backend che hanno bisogno di PostgreSQL ven
 ```
 combocard-game/
 ├── backend/__tests__/
-│   ├── controllers/   # HTTP: autorizzazioni, visibilità, crediti, jolly, turni di estrazione, suoni, storico
+│   ├── config/        # limiti dei parametri di gioco
+│   ├── controllers/   # HTTP: autorizzazioni, visibilità, crediti, jolly, turni di estrazione, attesa tra le estrazioni, parametri di gioco, suoni, storico
 │   ├── db/            # store (memoria e PostgreSQL), migrazioni, storico e statistiche, script admin
 │   ├── middleware/    # autenticazione, limiti di richieste
 │   ├── routes/        # route admin e auth
@@ -44,6 +45,7 @@ combocard-game/
 - **Estrazione a turni.** Giro dei giocatori, attesa tra le estrazioni, tempo limite, cartellino giallo e rosso, giocatori scollegati, riarmo dei timer all'avvio.
 - **Partite.** Creazione (anche privata, con codice), ingresso, avvio automatico a tavolo pieno, uscita, regole da confermare, una partita alla volta.
 - **Crediti e premi.** Acquisto, quote d'ingresso, premi per collezione, premi non assegnati, rimborsi.
+- **Parametri di gioco.** Intervalli (nel servizio e nei `CHECK` del database), modifica con motivo e riga di audit, solo l'admin, copia nella partita, attesa tra le estrazioni imposta dal server (`429`) con la pausa del Jolly.
 - **Visibilità.** Nessuna risposta o evento contiene il mazzo o la cartella di un altro giocatore.
 - **Account e area admin.** Registrazione, sessioni, cambio e reimpostazione della password, sospensione, eliminazione, ruoli, registro delle azioni.
 - **Storico e statistiche personali.** `GET /api/me/movements` e `GET /api/me/stats`.

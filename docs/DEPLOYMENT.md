@@ -590,7 +590,8 @@ RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=3000
 
 # Game (the values in backend/.env.example are the defaults)
-# Seconds between two draws
+# Seconds between two draws. With PostgreSQL the wait is a game setting that an admin changes
+# (default 8): this variable only gives the first value when the server runs without a database
 DRAW_COOLDOWN_SECONDS=8
 # Seconds a player has to draw when the game is played by turns; then the card is drawn
 # by itself and the player gets a yellow card (the second time, a red one)
