@@ -43,4 +43,15 @@ describe('errorHandler', () => {
     expect(res.headers['Retry-After']).toBeUndefined();
     expect(res.body).not.toHaveProperty('retryAfter');
   });
+
+  test('an error with a code sends it in the body', () => {
+    const res = respond(Object.assign(new AppError('You must accept the terms of use first', 403), { code: 'TERMS_REQUIRED' }));
+
+    expect(res.code).toBe(403);
+    expect(res.body).toMatchObject({ message: 'You must accept the terms of use first', code: 'TERMS_REQUIRED' });
+  });
+
+  test('an error without a code has none in the body', () => {
+    expect(respond(new AppError('Game not found', 404)).body).not.toHaveProperty('code');
+  });
 });

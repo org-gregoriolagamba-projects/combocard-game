@@ -31,6 +31,12 @@ const retryAfterOf = (err, res) => {
 };
 
 /**
+ * An error that carries a `code` (a string such as TERMS_REQUIRED) tells the client in the body, so
+ * that the screen can tell a refusal for a known reason from any other.
+ */
+const codeOf = (err) => (typeof err.code === "string" ? { code: err.code } : {});
+
+/**
  * Send error response in development environment
  */
 const sendErrorDev = (err, res) => {
@@ -39,6 +45,7 @@ const sendErrorDev = (err, res) => {
     error: err,
     message: err.message,
     stack: err.stack,
+    ...codeOf(err),
     ...retryAfterOf(err, res),
   });
 };
@@ -52,6 +59,7 @@ const sendErrorProd = (err, res) => {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
+      ...codeOf(err),
       ...retryAfterOf(err, res),
     });
   } else {

@@ -7,6 +7,8 @@
 import { jest } from '@jest/globals';
 import {
   registerPlayer,
+  toPlayerView,
+  acceptTerms,
   getPlayer,
   buyCredits,
   getAllPlayers,
@@ -39,11 +41,54 @@ describe('Player Service', () => {
       expect(() => registerPlayer(gameState, null)).toThrow();
     });
 
+    test('a registration carries the acceptance of the current terms', () => {
+      const player = registerPlayer(gameState, 'Anna');
+
+      expect(player.terminiVersione).toBe('2026-1');
+      expect(new Date(player.terminiAccettatiIl).toString()).not.toBe('Invalid Date');
+    });
+
+    test('with termsVersion null the player has not accepted anything', () => {
+      const player = registerPlayer(gameState, 'Anna', { termsVersion: null });
+
+      expect(player.terminiVersione).toBeNull();
+      expect(player.terminiAccettatiIl).toBeNull();
+    });
+
     test('should store player in gameState', () => {
       const player = registerPlayer(gameState, 'StoredPlayer');
 
       expect(gameState.players[player.id]).toBeDefined();
       expect(gameState.players[player.id].name).toBe('StoredPlayer');
+    });
+  });
+
+  describe('toPlayerView', () => {
+    test.each([['2026-1', false], [null, true], ['2025-1', true]])(
+      'a player with version %j has terminiDaAccettare %j',
+      (terminiVersione, expected) => {
+        expect(toPlayerView({ id: 'p1', terminiVersione }).terminiDaAccettare).toBe(expected);
+      },
+    );
+
+    test('keeps the other fields and does not change the player', () => {
+      const player = { id: 'p1', name: 'Anna', terminiVersione: null };
+
+      expect(toPlayerView(player)).toMatchObject({ id: 'p1', name: 'Anna' });
+      expect(player).not.toHaveProperty('terminiDaAccettare');
+    });
+  });
+
+  describe('acceptTerms', () => {
+    test('writes the date and the version once; a repetition keeps the first date', () => {
+      const player = registerPlayer(gameState, 'Anna', { termsVersion: null });
+
+      acceptTerms(gameState, player.id, '2026-1');
+      const first = player.terminiAccettatiIl;
+      acceptTerms(gameState, player.id, '2026-1');
+
+      expect(player.terminiVersione).toBe('2026-1');
+      expect(player.terminiAccettatiIl).toBe(first);
     });
   });
 

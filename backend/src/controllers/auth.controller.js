@@ -56,7 +56,7 @@ async function startSession(req, res, player, { role, sessionVersion, mustChange
   setRefreshCookie(res, refreshToken);
   // The role is beside the player, not inside it: the player is what the game shows, the role is
   // only for whoever logs in (the screen of the admin needs it)
-  return { accessToken: signAccessToken(player.id, role, sessionVersion), player, role, mustChangePassword };
+  return { accessToken: signAccessToken(player.id, role, sessionVersion), player: playerService.toPlayerView(player), role, mustChangePassword };
 }
 
 /**
@@ -64,9 +64,10 @@ async function startSession(req, res, player, { role, sessionVersion, mustChange
  * POST /api/auth/register
  */
 export const register = asyncHandler(async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, termsVersion } = req.body;
   const passwordHash = await hashPassword(password);
-  const player = playerService.registerPlayer(req.gameState, username);
+  // A registration carries the acceptance of the terms: the schema has already checked the version
+  const player = playerService.registerPlayer(req.gameState, username, { termsVersion });
 
   try {
     await req.store.createAccount(player, {
@@ -138,7 +139,7 @@ export const refresh = asyncHandler(async (req, res) => {
   setRefreshCookie(res, nextToken);
   sendSuccess(res, {
     accessToken: signAccessToken(playerId, account.role, account.sessionVersion),
-    player,
+    player: playerService.toPlayerView(player),
     role: account.role,
     mustChangePassword: account.mustChangePassword,
   });

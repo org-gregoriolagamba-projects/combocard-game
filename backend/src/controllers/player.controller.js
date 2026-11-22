@@ -9,6 +9,7 @@ import { sendSuccess } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import * as playerService from "../services/player.service.js";
 import { applyRulesConfirmation } from "./game.controller.js";
+import { TERMS_VERSION } from "../config/legale.js";
 
 const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
 
@@ -18,7 +19,38 @@ const STORAGE_UNAVAILABLE = "Storage temporarily unavailable, please try again";
  */
 export const getPlayer = asyncHandler(async (req, res) => {
   const player = playerService.getPlayer(req.gameState, req.params.playerId);
-  sendSuccess(res, player);
+  sendSuccess(res, playerService.toPlayerView(player));
+});
+
+/**
+ * Accept the terms of use, with the version of the texts the player saw
+ * POST /api/players/:playerId/accept-terms
+ */
+export const acceptTerms = asyncHandler(async (req, res) => {
+  const player = playerService.getPlayer(req.gameState, req.params.playerId);
+
+  // Who saw an old text does not accept the new one: the screen asks to reload
+  if (req.body.version !== TERMS_VERSION) {
+    throw Object.assign(new AppError("The terms of use have changed, reload the page", 409), {
+      code: "TERMS_VERSION_OUTDATED",
+    });
+  }
+
+  if (player.terminiVersione !== TERMS_VERSION) {
+    const before = { at: player.terminiAccettatiIl, version: player.terminiVersione };
+    playerService.acceptTerms(req.gameState, player.id, TERMS_VERSION);
+
+    try {
+      await req.store.recordTermsAccepted(player.id, player.terminiAccettatiIl, player.terminiVersione);
+    } catch (err) {
+      console.error(`❌ Could not save the acceptance of the terms of player ${player.id}: ${err.message}`);
+      player.terminiAccettatiIl = before.at;
+      player.terminiVersione = before.version;
+      throw new AppError(STORAGE_UNAVAILABLE, 503);
+    }
+  }
+
+  sendSuccess(res, { success: true, terminiAccettatiIl: player.terminiAccettatiIl, terminiVersione: player.terminiVersione });
 });
 
 /**

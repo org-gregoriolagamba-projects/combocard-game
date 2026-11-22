@@ -73,6 +73,24 @@ describe('auth controller', () => {
       expect(verifyAccessToken(res.data.accessToken).playerId).toBe(res.data.player.id);
     });
 
+    test('the player comes back with the acceptance of the terms and nothing left to accept', async () => {
+      const res = await ctx.call(register, { body: { ...CREDENTIALS, acceptTerms: true, termsVersion: '2026-1' } });
+
+      expect(res.data.player).toMatchObject({ terminiVersione: '2026-1', terminiDaAccettare: false });
+      expect(ctx.gameState.players[res.data.player.id].terminiAccettatiIl).toEqual(expect.any(String));
+    });
+
+    test('saves the acceptance with the account', async () => {
+      const createAccount = jest.spyOn(ctx.store, 'createAccount');
+
+      await ctx.call(register, { body: { ...CREDENTIALS, acceptTerms: true, termsVersion: '2026-1' } });
+
+      expect(createAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ terminiVersione: '2026-1', terminiAccettatiIl: expect.any(String) }),
+        expect.any(Object),
+      );
+    });
+
     test('never returns the password or its hash', async () => {
       const res = await ctx.call(register, { body: CREDENTIALS });
       expect(JSON.stringify(res)).not.toMatch(/passwordHash|correct horse|argon2/i);
@@ -101,6 +119,19 @@ describe('auth controller', () => {
 
       expect(ctx.gameState.players).toEqual({});
       errorSpy.mockRestore();
+    });
+  });
+
+  describe('login of a player who has not accepted the terms', () => {
+    test('the player comes back with terminiDaAccettare true', async () => {
+      const registered = await ctx.call(register, { body: CREDENTIALS });
+      ctx.gameState.players[registered.data.player.id].terminiVersione = null;
+      ctx.gameState.players[registered.data.player.id].terminiAccettatiIl = null;
+      ctx.cookie = null;
+
+      const res = await ctx.call(login, { body: CREDENTIALS });
+
+      expect(res.data.player.terminiDaAccettare).toBe(true);
     });
   });
 
@@ -159,6 +190,17 @@ describe('auth controller', () => {
   });
 
   describe('refresh', () => {
+    test('the restored session says whether there is something left to accept', async () => {
+      const { data } = await ctx.call(register, { body: CREDENTIALS });
+      const cookie = ctx.cookie;
+      ctx.gameState.players[data.player.id].terminiVersione = null;
+      ctx.gameState.players[data.player.id].terminiAccettatiIl = null;
+
+      const res = await ctx.call(refresh, { cookie });
+
+      expect(res.data.player.terminiDaAccettare).toBe(true);
+    });
+
     test('a suspended account cannot renew the session', async () => {
       const { data } = await ctx.call(register, { body: CREDENTIALS });
       const cookie = ctx.cookie;

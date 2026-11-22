@@ -8,6 +8,7 @@
 import Joi from "joi";
 import { ACCOUNT_ROLES, COLLECTION_TYPES, GAME_DEFAULTS } from "../config/constants.js";
 import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS } from "../config/gameSettings.js";
+import { TERMS_VERSION } from "../config/legale.js";
 
 const integer = Joi.number().integer().strict();
 const collectionType = Joi.string().valid(...Object.values(COLLECTION_TYPES));
@@ -23,9 +24,12 @@ const username = Joi.string()
   });
 
 // Auth routes
+// A registration carries the acceptance of the terms, with the version of the texts the player saw
 export const registerSchema = Joi.object({
   username: username.required(),
   password: Joi.string().min(8).max(128).required(),
+  acceptTerms: Joi.boolean().strict().valid(true).required(),
+  termsVersion: Joi.string().valid(TERMS_VERSION).required(),
 });
 
 // No length rules at login: they would only reveal the password policy
@@ -46,6 +50,11 @@ export const deleteAccountSchema = Joi.object({
 });
 
 // Player routes
+// The version is compared by the controller: an old one is a 409, not a malformed body
+export const acceptTermsSchema = Joi.object({
+  version: Joi.string().max(32).required(),
+});
+
 export const buyCreditsSchema = Joi.object({
   amount: integer.min(1).required(),
 });
