@@ -109,6 +109,18 @@ export function acceptTerms(gameState, playerId, version) {
 }
 
 /**
+ * Refuse a player who has not accepted the current terms of use. The screen asks for the
+ * acceptance, but a client could skip the screen.
+ * @param {Object} player - Player
+ * @throws {AppError} 403 with the code TERMS_REQUIRED
+ */
+export function assertTermsAccepted(player) {
+  if (player.terminiVersione !== TERMS_VERSION) {
+    throw Object.assign(new AppError("You must accept the terms of use first", 403), { code: "TERMS_REQUIRED" });
+  }
+}
+
+/**
  * The player as the owner of the account sees it: with what is left to accept
  * @param {Object} player - Player
  * @returns {Object} Copy of the player with `terminiDaAccettare`

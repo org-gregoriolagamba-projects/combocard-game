@@ -83,6 +83,7 @@ export const acceptRules = asyncHandler(async (req, res) => {
  */
 export const buyCredits = asyncHandler(async (req, res) => {
   const { amount } = req.body;
+  playerService.assertTermsAccepted(playerService.getPlayer(req.gameState, req.params.playerId));
   const player = playerService.buyCredits(req.gameState, req.params.playerId, amount);
 
   try {
