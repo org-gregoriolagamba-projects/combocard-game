@@ -43,6 +43,8 @@ describe('translateServerError', () => {
     ['You cannot reset your own password', 'Non puoi reimpostare la tua password: usa il cambio password'],
     ['Cannot suspend the last admin', "Non si può sospendere l'ultimo admin"],
     ['You do not have permission to do this', 'Non hai i permessi per farlo'],
+    ['You must accept the terms of use first', "Per continuare devi accettare i termini d'uso"],
+    ['The terms of use have changed, reload the page', 'I testi sono cambiati: ricarica la pagina'],
     ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {
     expect(translateServerError(english)).toBe(italian);

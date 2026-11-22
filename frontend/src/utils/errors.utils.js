@@ -46,6 +46,8 @@ const EXACT = {
   "You are the last active admin: make another admin first": "Sei l'ultimo admin attivo: promuovi prima un altro admin",
   "You cannot reset your own password": "Non puoi reimpostare la tua password: usa il cambio password",
   "You do not have permission to do this": "Non hai i permessi per farlo",
+  "You must accept the terms of use first": "Per continuare devi accettare i termini d'uso",
+  "The terms of use have changed, reload the page": "I testi sono cambiati: ricarica la pagina",
   "You are already in another game": "Sei già in un'altra partita: lasciala prima",
   "A player does not have enough credits to start": "Un giocatore non ha più abbastanza crediti: la partita non può iniziare",
   "You are not part of this game": "Non fai parte di questa partita",

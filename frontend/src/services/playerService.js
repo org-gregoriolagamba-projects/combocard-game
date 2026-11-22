@@ -5,6 +5,7 @@
  */
 
 import api from "./api";
+import { LEGALE } from "../config/legale";
 
 /**
  * Get player by ID
@@ -23,6 +24,16 @@ export const getPlayer = async (playerId) => {
  */
 export const acceptRules = async (playerId) => {
   const response = await api.post(`/players/${playerId}/accept-rules`);
+  return response.data;
+};
+
+/**
+ * Accept the terms of use, with the version of the texts the app shows
+ * @param {string} playerId - Player ID
+ * @returns {Promise} { success, terminiAccettatiIl, terminiVersione }
+ */
+export const acceptTerms = async (playerId) => {
+  const response = await api.post(`/players/${playerId}/accept-terms`, { version: LEGALE.versione });
   return response.data;
 };
 

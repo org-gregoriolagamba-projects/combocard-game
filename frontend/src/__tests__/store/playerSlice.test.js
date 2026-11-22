@@ -20,6 +20,7 @@ describe('playerSlice', () => {
     error: null,
     sessionChecked: false,
     regoleAccettateIl: null,
+    terminiDaAccettare: false,
     role: 'player',
     mustChangePassword: false,
   };
@@ -57,6 +58,46 @@ describe('playerSlice', () => {
 
       expect(state.regoleAccettateIl).toBeNull();
       expect(state.error).toBe('Impossibile contattare il server');
+    });
+  });
+
+  describe('acceptance of the terms', () => {
+    test('a login of a player who has not accepted says so', () => {
+      const state = playerReducer(initialState, {
+        type: 'player/login/fulfilled',
+        payload: { player: { id: 'p1', name: 'Anna', credits: 0, currentGameId: null, terminiDaAccettare: true }, role: 'player' },
+      });
+
+      expect(state.terminiDaAccettare).toBe(true);
+    });
+
+    test('a player without the field has nothing to accept (the state of the older tests)', () => {
+      const state = playerReducer(initialState, {
+        type: 'player/login/fulfilled',
+        payload: { player: { id: 'p1', name: 'Anna', credits: 0, currentGameId: null }, role: 'player' },
+      });
+
+      expect(state.terminiDaAccettare).toBe(false);
+    });
+
+    test('accepting clears it', () => {
+      const state = playerReducer(
+        { ...initialState, id: 'p1', terminiDaAccettare: true },
+        { type: 'player/acceptTerms/fulfilled', payload: { terminiVersione: '2026-1' } },
+      );
+
+      expect(state.terminiDaAccettare).toBe(false);
+      expect(state.isLoading).toBe(false);
+    });
+
+    test('a failed acceptance keeps it to accept and says why', () => {
+      const state = playerReducer(
+        { ...initialState, id: 'p1', terminiDaAccettare: true },
+        { type: 'player/acceptTerms/rejected', payload: 'I testi sono cambiati: ricarica la pagina' },
+      );
+
+      expect(state.terminiDaAccettare).toBe(true);
+      expect(state.error).toBe('I testi sono cambiati: ricarica la pagina');
     });
   });
 

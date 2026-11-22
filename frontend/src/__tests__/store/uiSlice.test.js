@@ -10,6 +10,8 @@ import uiReducer, {
   closeModal,
   setVittoriaRecente,
   clearVittoriaRecente,
+  showLegal,
+  closeLegal,
 } from '../../store/slices/uiSlice';
 
 describe('uiSlice', () => {
@@ -18,6 +20,7 @@ describe('uiSlice', () => {
     toasts: [],
     vittoriaRecente: null,
     currentScreen: "home",
+    legalReturn: null,
     modals: {
       cassa: false,
       creaPartita: false,
@@ -36,6 +39,28 @@ describe('uiSlice', () => {
       expect(vinta.vittoriaRecente).toEqual({ tipo: 'tris' });
 
       expect(uiReducer(vinta, clearVittoriaRecente()).vittoriaRecente).toBeNull();
+    });
+  });
+
+  describe('the legal texts', () => {
+    test('showLegal remembers the screen it came from and closeLegal goes back to it', () => {
+      const opened = uiReducer({ ...initialState, currentScreen: 'hall' }, showLegal('informativa'));
+
+      expect(opened.currentScreen).toBe('informativa');
+      expect(opened.legalReturn).toBe('hall');
+      expect(uiReducer(opened, closeLegal())).toMatchObject({ currentScreen: 'hall', legalReturn: null });
+    });
+
+    test('going from one text to the other keeps the screen to go back to', () => {
+      const first = uiReducer({ ...initialState, currentScreen: 'hall' }, showLegal('informativa'));
+      const second = uiReducer(first, showLegal('termini'));
+
+      expect(second.currentScreen).toBe('termini');
+      expect(second.legalReturn).toBe('hall');
+    });
+
+    test('without a screen to go back to, closeLegal goes to the home', () => {
+      expect(uiReducer({ ...initialState, currentScreen: 'informativa', legalReturn: null }, closeLegal()).currentScreen).toBe('home');
     });
   });
 
