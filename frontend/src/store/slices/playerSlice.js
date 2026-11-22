@@ -76,6 +76,17 @@ export const acceptRules = createAsyncThunk(
   }
 );
 
+export const acceptTerms = createAsyncThunk(
+  "player/acceptTerms",
+  async (playerId, { rejectWithValue }) => {
+    try {
+      return await playerService.acceptTerms(playerId);
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const buyCredits = createAsyncThunk(
   "player/buyCredits",
   async ({ playerId, amount }, { rejectWithValue }) => {
@@ -95,6 +106,8 @@ const initialState = {
   currentGameId: null,
   // When the player confirmed that they read the rules; null until then (the game asks for it)
   regoleAccettateIl: null,
+  // The server says the player has not accepted the current terms of use: the app asks first
+  terminiDaAccettare: false,
   isLoading: false,
   error: null,
   // False until the first check for an existing session has finished
@@ -113,6 +126,7 @@ const applyPlayer = (state, player, role = player.role, mustChangePassword = pla
   state.credits = player.credits;
   state.currentGameId = player.currentGameId;
   state.regoleAccettateIl = player.regoleAccettateIl ?? null;
+  state.terminiDaAccettare = player.terminiDaAccettare === true;
 };
 
 const noSession = { ...initialState, sessionChecked: true };
@@ -208,6 +222,19 @@ const playerSlice = createSlice({
         state.regoleAccettateIl = action.payload.regoleAccettateIl;
       })
       .addCase(acceptRules.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      // Acceptance of the terms of use
+      .addCase(acceptTerms.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(acceptTerms.fulfilled, (state) => {
+        state.isLoading = false;
+        state.terminiDaAccettare = false;
+      })
+      .addCase(acceptTerms.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
       })

@@ -59,6 +59,19 @@ describe('the footer', () => {
     expect(screen.getByRole('contentinfo')).toHaveTextContent('© 2026–2027 Gregorio La Gamba');
   });
 
+  test('has the links to the privacy notice and to the terms of use, that remember where to go back', () => {
+    const { store } = renderWithProviders(<Footer />, { preloadedState: state() });
+    const footer = within(screen.getByRole('contentinfo'));
+
+    fireEvent.click(footer.getByRole('button', { name: 'Informativa' }));
+    expect(store.getState().ui.currentScreen).toBe('informativa');
+    expect(store.getState().ui.legalReturn).toBe('hall');
+
+    fireEvent.click(footer.getByRole('button', { name: 'Termini' }));
+    expect(store.getState().ui.currentScreen).toBe('termini');
+    expect(store.getState().ui.legalReturn).toBe('hall');
+  });
+
   test('the link opens the "Info e contatti" dialog, and closing it gives the focus back', () => {
     renderWithProviders(<Footer />);
     const link = within(screen.getByRole('contentinfo')).getByRole('button', { name: 'Info e contatti' });

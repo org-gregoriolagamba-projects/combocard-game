@@ -1,11 +1,12 @@
 import React from 'react';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppContent from '../AppContent';
 import { renderWithProviders } from './test-utils';
 import * as authService from '../services/authService';
 import * as gameService from '../services/gameService';
 import * as adminService from '../services/adminService';
+import { clearDraft } from '../utils/formDraft';
 
 vi.mock('../services/authService');
 vi.mock('../services/gameService');
@@ -101,5 +102,85 @@ describe('AppContent: the admin screen', () => {
     expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Amministrazione' })).not.toBeInTheDocument();
     expect(adminService.listUsers).not.toHaveBeenCalled();
+  });
+});
+
+describe('AppContent: the terms of use come before the rules', () => {
+  beforeEach(() => {
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+  });
+
+  const withTerms = (terminiDaAccettare, extra = {}) => {
+    const state = preloaded(null);
+    state.player = { ...state.player, terminiDaAccettare, ...extra };
+    return state;
+  };
+
+  test('a player who has not accepted sees "Prima di continuare", before the rules', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withTerms(true) });
+
+    expect(await screen.findByRole('heading', { name: 'Prima di continuare' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Prima di giocare: le regole' })).not.toBeInTheDocument();
+  });
+
+  test('a temporary password still comes first', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withTerms(true, { mustChangePassword: true }) });
+
+    expect(await screen.findByRole('heading', { name: /nuova password/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Prima di continuare' })).not.toBeInTheDocument();
+  });
+
+  test('a state without the field (the older tests) has nothing to accept', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: preloaded(null) });
+
+    expect(await screen.findByRole('heading', { name: 'Prima di giocare: le regole' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Prima di continuare' })).not.toBeInTheDocument();
+  });
+
+  test('the texts open without an account', async () => {
+    const state = preloaded(null, 'informativa');
+    state.player.id = null;
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Informativa sulla privacy' })).toBeInTheDocument();
+  });
+
+  test('the texts open also from the gate, and going back shows the gate again', async () => {
+    const { store } = renderWithProviders(<AppContent />, { preloadedState: withTerms(true) });
+    fireEvent.click(await screen.findByRole('button', { name: /informativa sulla privacy/i }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Informativa sulla privacy' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /indietro/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Prima di continuare' })).toBeInTheDocument();
+    expect(store.getState().ui.currentScreen).toBe('hall');
+  });
+});
+
+describe('AppContent: reading a text from the registration form', () => {
+  beforeEach(() => {
+    clearDraft();
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+  });
+
+  test('"Indietro" brings the registration back as it was, not an empty login', async () => {
+    const state = preloaded(null, 'home');
+    state.player.id = null;
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    fireEvent.click(await screen.findByRole('button', { name: /crea un account/i }));
+    fireEvent.change(screen.getByLabelText(/nome utente/i), { target: { value: 'Anna' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'long enough' } });
+    fireEvent.click(screen.getByLabelText("Ho letto l'informativa sulla privacy e accetto i termini d'uso"));
+    fireEvent.click(screen.getByRole('button', { name: 'Informativa sulla privacy' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Informativa sulla privacy' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /indietro/i }));
+
+    expect(await screen.findByRole('button', { name: /registrati/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/nome utente/i)).toHaveValue('Anna');
+    expect(screen.getByLabelText(/password/i)).toHaveValue('long enough');
+    expect(screen.getByLabelText("Ho letto l'informativa sulla privacy e accetto i termini d'uso")).toBeChecked();
   });
 });

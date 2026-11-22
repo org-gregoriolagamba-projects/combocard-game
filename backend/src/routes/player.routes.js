@@ -8,7 +8,7 @@ import { Router } from "express";
 import * as playerController from "../controllers/player.controller.js";
 import { validate } from "../middleware/validation.middleware.js";
 import { requireAuth, requireSelf } from "../middleware/auth.middleware.js";
-import { buyCreditsSchema } from "../validation/schemas.js";
+import { acceptTermsSchema, buyCreditsSchema } from "../validation/schemas.js";
 
 const router = Router();
 
@@ -25,6 +25,19 @@ router.get("/:playerId", requireAuth, requireSelf, playerController.getPlayer);
  * @access  Authenticated, self only
  */
 router.post("/:playerId/accept-rules", requireAuth, requireSelf, playerController.acceptRules);
+
+/**
+ * @route   POST /api/players/:playerId/accept-terms
+ * @desc    Accept the terms of use, with the version of the texts the player saw
+ * @access  Authenticated, self only
+ */
+router.post(
+  "/:playerId/accept-terms",
+  requireAuth,
+  requireSelf,
+  validate(acceptTermsSchema),
+  playerController.acceptTerms,
+);
 
 /**
  * @route   POST /api/players/:playerId/buy-credits

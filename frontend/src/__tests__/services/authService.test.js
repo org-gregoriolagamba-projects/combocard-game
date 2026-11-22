@@ -18,6 +18,19 @@ describe('authService: the role of whoever is logged in', () => {
     expect(setAccessToken).toHaveBeenCalledWith('t');
   });
 
+  test('register sends the acceptance of the terms, with the version of the texts the app shows', async () => {
+    api.post.mockResolvedValue({ data: { accessToken: 't', player, role: 'player' } });
+
+    await authService.register('Anna', 'password1');
+
+    expect(api.post).toHaveBeenCalledWith('/auth/register', {
+      username: 'Anna',
+      password: 'password1',
+      acceptTerms: true,
+      termsVersion: '2026-1',
+    });
+  });
+
   test('restoreSession gives the player with the role in it', async () => {
     refreshSession.mockResolvedValue({ accessToken: 't', player, role: 'admin' });
 

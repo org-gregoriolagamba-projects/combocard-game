@@ -378,8 +378,10 @@ test.describe('Login and credits on a phone @mobile', () => {
     await page.getByRole('button', { name: /Crea Nuova Partita/ }).click();
     for (const [nome, nuovo] of [['Crediti richiesti per partecipare', '25'], ['Numero massimo giocatori', '4']]) {
       const campo = page.getByLabel(nome);
+      // The default comes from the settings of the server, which arrive after the hall opens:
+      // wait for it instead of reading the field at once (it was empty on a slow runner)
+      await expect(campo).not.toHaveValue('');
       const vecchio = await campo.inputValue();
-      expect(vecchio).not.toBe('');
       for (let i = 0; i < vecchio.length; i += 1) await campo.press('Backspace');
       await expect(campo).toHaveValue('');
       await campo.pressSequentially(nuovo);

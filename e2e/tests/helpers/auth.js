@@ -2,7 +2,32 @@
  * Authentication helpers for the API tests
  */
 
+import { readFileSync } from 'node:fs';
+
+// The version of the terms the frontend shows, read from its file as text: the frontend package is
+// not an ES module (importing the file fails on some Node versions), and a regular expression is enough
+const FRONTEND_TERMS_VERSION = readFileSync(new URL('../../../frontend/src/config/legale.js', import.meta.url), 'utf8')
+  .match(/versione:\s*["']([^"']+)["']/)?.[1];
+if (!FRONTEND_TERMS_VERSION) {
+  throw new Error('Cannot read the version of the terms from frontend/src/config/legale.js');
+}
+
 export const PASSWORD = 'test-password-123';
+
+/**
+ * What a registration carries: the acceptance of the terms of use, with the version the frontend
+ * shows. The test passes only if that version is the one of the server (that is the check that the
+ * two constants are aligned).
+ */
+export const TERMS = { acceptTerms: true, termsVersion: FRONTEND_TERMS_VERSION };
+
+export const TERMS_LABEL = "Ho letto l'informativa sulla privacy e accetto i termini d'uso";
+
+/**
+ * Tick the box of the terms in the registration form
+ * @param {Page} page - Playwright page, on the registration form
+ */
+export const acceptTermsOnForm = (page) => page.getByLabel(TERMS_LABEL).check();
 
 let counter = 0;
 
@@ -29,7 +54,7 @@ export function uniqueUsername(base = 'Player') {
  */
 export async function registerPlayer(request, apiUrl, base, { acceptRules = true } = {}) {
   const response = await request.post(`${apiUrl}/api/auth/register`, {
-    data: { username: uniqueUsername(base), password: PASSWORD },
+    data: { username: uniqueUsername(base), password: PASSWORD, ...TERMS },
   });
   if (!response.ok()) {
     throw new Error(`Registration failed: ${response.status()} ${await response.text()}`);

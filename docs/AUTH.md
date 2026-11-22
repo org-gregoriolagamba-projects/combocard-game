@@ -59,7 +59,7 @@ Se arriva un token già sostituito da più di 10 secondi, forse è stato rubato:
 
 | Route | Accesso | Descrizione |
 |---|---|---|
-| `POST /api/auth/register` | Pubblico | `{ username, password }`. Risponde `409` se il nome è già in uso |
+| `POST /api/auth/register` | Pubblico | `{ username, password, acceptTerms, termsVersion }`. `acceptTerms` deve essere `true` e `termsVersion` la versione corrente dei termini (altrimenti `400`): vedi «Accettazione dei termini». Risponde `409` se il nome è già in uso |
 | `POST /api/auth/login` | Pubblico | `{ username, password }`. Stesso `401` per password errata e utente inesistente |
 | `POST /api/auth/refresh` | Cookie | Nuovo access token. Senza cookie risponde `200` con valori `null` |
 | `POST /api/auth/logout` | Cookie | Chiude la sessione su questo dispositivo |
@@ -77,6 +77,21 @@ Tutte le route di `/api/games` e `/api/players` richiedono il token. In particol
 - avviare la partita ed estrarre carte spetta solo al primo giocatore della partita.
 
 Sono state rimosse `POST /api/players/register` e `GET /api/players`.
+
+| Route | Accesso | Descrizione |
+|---|---|---|
+| `POST /api/players/:playerId/accept-terms` | Token, solo se stessi | `{ version }`. Accetta i termini d'uso con la versione dei testi che il giocatore ha visto. `409` con `code: "TERMS_VERSION_OUTDATED"` se non è la versione corrente; una ripetizione risponde `200` senza riscrivere. `503` se il salvataggio fallisce |
+
+## Accettazione dei termini
+
+L'informativa sulla privacy e i termini d'uso sono due schermate pubbliche dell'app. L'informativa **informa** (la base giuridica è l'esecuzione del servizio); i termini si **accettano**, con una casella che dice «Ho letto l'informativa sulla privacy e accetto i termini d'uso».
+
+- **Alla registrazione** la casella è obbligatoria: il corpo porta `acceptTerms: true` e `termsVersion`. Il giocatore nasce con la data e la versione già scritte.
+- **Chi è già registrato** (account creati prima dei testi, o con una versione vecchia) parte senza accettazione e al prossimo accesso vede «Prima di continuare», prima delle regole (dopo la password provvisoria, se c'è). Può uscire senza accettare.
+- **Versione:** una costante per lato (`backend/src/config/legale.js`, `frontend/src/config/legale.js`) con lo stesso valore. Quando i testi cambiano in modo importante si cambia e tutti accettano di nuovo; lo script `check-docs.mjs` dà errore se i due valori sono diversi.
+- **Cosa dice il server:** il giocatore (accesso, rinnovo della sessione, `GET /api/players/:id`) ha `terminiDaAccettare`. Finché è vero, `POST /api/games`, `POST /api/games/:id/join` (per chi non è già nella partita) e `POST /api/players/:id/buy-credits` rispondono `403` con `code: "TERMS_REQUIRED"`.
+- **Eliminazione dell'account:** la data e la versione dell'accettazione restano, senza il nome (vedi `DATABASE.md`).
+- **Visibilità:** i campi `terminiAccettatiIl`, `terminiVersione` e `terminiDaAccettare` non compaiono in nessuna vista di partita né evento.
 
 `GET /api/settings` (ogni utente con il token) dà i parametri di gioco in vigore, i limiti di ciascuno e i predefiniti, e **non** dice chi li ha cambiati. Si cambiano solo dalle route di amministrazione.
 

@@ -31,7 +31,7 @@ Se `DATABASE_URL` è impostata e il database non è raggiungibile all'avvio, il 
 
 | Tabella | Contenuto |
 |---|---|
-| `players` | Identità e saldo di ogni giocatore, quando ha confermato di aver letto le regole (`rules_accepted_at`, vuoto finché non lo fa) e quando l'account è stato eliminato (`deleted_at`: la riga resta anonimizzata, con nome «Utente eliminato», e non si ricarica nel gioco). |
+| `players` | Identità e saldo di ogni giocatore, quando ha confermato di aver letto le regole (`rules_accepted_at`, vuoto finché non lo fa), quando ha accettato i termini d'uso e con quale versione dei testi (`terms_accepted_at` e `terms_version`, vuoti finché non lo fa; restano anche dopo l'eliminazione dell'account) e quando l'account è stato eliminato (`deleted_at`: la riga resta anonimizzata, con nome «Utente eliminato», e non si ricarica nel gioco). |
 | `games` | Stato completo della partita in `state`, più le colonne per filtrare (`status`, `is_private`). |
 | `credit_transactions` | Un movimento per ogni variazione di crediti, con il saldo risultante. Il tipo è `initial`, `account_closed` (saldo azzerato quando un account viene eliminato), `purchase` (Cassa), `game_entry`, `game_payout`, `admin_adjustment` (rettifica di un admin, con il motivo in `audit_log`) o `game_refund` (quota restituita quando un admin annulla una partita). |
 | `user_accounts` | Nome utente, hash della password e ruolo di ogni account, `suspended_at` (nullo = attivo) e `session_version` (sale quando un admin sospende l'account o ne chiude le sessioni, o quando la password cambia: i token firmati prima non valgono più) e `must_change_password` (vero dopo una reimpostazione da parte di un admin, finché l'utente non sceglie la sua password). Vedi [AUTH.md](AUTH.md). |

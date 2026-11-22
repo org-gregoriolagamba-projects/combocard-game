@@ -8,7 +8,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { PASSWORD, registerPlayer } from '../helpers/auth.js';
+import { PASSWORD, TERMS, registerPlayer } from '../helpers/auth.js';
 import { E2E_DATABASE_URL, registerAdmin } from '../helpers/admin.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
@@ -38,7 +38,7 @@ test.describe('Admin area: deletion of an account @admin', () => {
 
     expect(response.status()).toBe(200);
     expect((await response.json()).data).toEqual({ playerId: player.id, credits: 200 });
-    expect((await request.post(`${API_URL}/api/auth/login`, { data: { username: player.name, password: PASSWORD } })).status()).toBe(401);
+    expect((await request.post(`${API_URL}/api/auth/login`, { data: { username: player.name, password: PASSWORD, ...TERMS } })).status()).toBe(401);
     expect((await request.get(`${API_URL}/api/players/${player.id}`, { headers: player.headers })).status()).toBe(401);
     const found = await request.get(`${API_URL}/api/admin/users?q=${encodeURIComponent(player.name.toLowerCase())}`, { headers: admin.headers });
     expect((await found.json()).data.total).toBe(0);
@@ -48,7 +48,7 @@ test.describe('Admin area: deletion of an account @admin', () => {
     expect(event).toMatchObject({ action: 'user_deleted', actorId: admin.id, details: { role: 'player', reason: 'richiesta di cancellazione', self: false } });
     expect(JSON.stringify(event)).not.toContain(player.name);
 
-    const again = await request.post(`${API_URL}/api/auth/register`, { data: { username: player.name, password: PASSWORD } });
+    const again = await request.post(`${API_URL}/api/auth/register`, { data: { username: player.name, password: PASSWORD, ...TERMS } });
     expect(again.status()).toBe(201);
   });
 

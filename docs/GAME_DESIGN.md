@@ -135,8 +135,9 @@ The screen therefore lays the sheet out like a tombola sheet: the deck as a tabl
 ## 🎲 Game Flow
 
 ### 1. Registration
-- Player enters their name
+- Player enters their name and password and ticks the box "Ho letto l'informativa sulla privacy e accetto i termini d'uso" (with the links to the two texts, which are public). Nothing is sent without it. The acceptance is saved with the date and the version of the texts.
 - Starts with 0 credits (credits are taken with **Prendi crediti** (play money))
+- A player who is already registered (an account older than the texts, or with an old version) sees "Prima di continuare" at the next access, before the rules, and accepts there. Until then the server refuses to create a game, join one or take credits.
 
 ### 1b. The rules
 - The first time a player uses the game, a screen shows the full rules ("Prima di giocare: le regole"). The player must scroll to the end, tick "Ho letto e compreso le regole e le meccaniche del gioco" and continue. The date is saved with the player (`players.rules_accepted_at`) and the question is not asked again. Existing accounts confirm at their next access.

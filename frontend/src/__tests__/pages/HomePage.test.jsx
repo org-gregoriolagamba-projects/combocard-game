@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { HomePage } from '../../pages';
 import { renderWithProviders } from '../test-utils';
 import { setAccessToken } from '../../services/api';
+import { clearDraft } from '../../utils/formDraft';
 
 vi.mock('../../services/socketService', () => ({
   __esModule: true,
@@ -23,10 +24,13 @@ const fill = (username, password) => {
   fireEvent.change(screen.getByLabelText(/password/i), { target: { value: password } });
 };
 
+const termsBox = () => screen.getByLabelText("Ho letto l'informativa sulla privacy e accetto i termini d'uso");
+
 describe('HomePage', () => {
   let errorSpy;
 
   beforeEach(() => {
+    clearDraft();
     setAccessToken(null);
     global.fetch = vi.fn();
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -68,10 +72,98 @@ describe('HomePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
     fill('Anna', 'long enough');
+    fireEvent.click(termsBox());
     fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
 
     await waitFor(() => expect(store.getState().ui.currentScreen).toBe('hall'));
     expect(global.fetch.mock.calls[0][0]).toMatch(/\/auth\/register$/);
+  });
+
+  describe('the acceptance of the terms at the registration', () => {
+    test('the box is only in the registration, not in the login', () => {
+      renderWithProviders(<HomePage />);
+      expect(screen.queryByLabelText(/Ho letto l'informativa/)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      expect(termsBox()).not.toBeChecked();
+    });
+
+    test('without the tick nothing is sent: the error is under the box and the focus goes there', () => {
+      renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+
+      fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
+
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(screen.getByRole('alert')).toHaveTextContent("Per registrarti devi accettare l'informativa e i termini d'uso");
+      expect(termsBox()).toHaveFocus();
+      expect(termsBox()).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    test('ticking the box takes the error away, and the registration carries the acceptance', async () => {
+      global.fetch.mockResolvedValue(jsonResponse(201, session));
+      renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+      fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
+
+      fireEvent.click(termsBox());
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
+
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+      expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({
+        username: 'Anna',
+        password: 'long enough',
+        acceptTerms: true,
+        termsVersion: '2026-1',
+      });
+    });
+
+    test('opening a text from the form keeps what was typed for when the player comes back', () => {
+      const first = renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+      fireEvent.click(termsBox());
+
+      fireEvent.click(screen.getByRole('button', { name: "Termini d'uso" }));
+      first.unmount();
+      renderWithProviders(<HomePage />);
+
+      expect(screen.getByLabelText(/nome utente/i)).toHaveValue('Anna');
+      expect(screen.getByLabelText(/password/i)).toHaveValue('long enough');
+      expect(termsBox()).toBeChecked();
+      expect(screen.getByRole('button', { name: /registrati/i })).toBeInTheDocument();
+    });
+
+    test('a registration that went through leaves nothing to restore', async () => {
+      global.fetch.mockResolvedValue(jsonResponse(201, session));
+      const first = renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+      fireEvent.click(termsBox());
+      fireEvent.click(screen.getByRole('button', { name: "Termini d'uso" }));
+      fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(first.store.getState().ui.currentScreen).toBe('hall'));
+      first.unmount();
+
+      renderWithProviders(<HomePage />);
+
+      expect(screen.getByLabelText(/nome utente/i)).toHaveValue('');
+      expect(screen.queryByLabelText(/Ho letto l'informativa/)).not.toBeInTheDocument();
+    });
+
+    test('the links of the box open the two texts and do not tick it', () => {
+      const { store } = renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Informativa sulla privacy' }));
+
+      expect(store.getState().ui.currentScreen).toBe('informativa');
+      expect(termsBox()).not.toBeChecked();
+    });
   });
 
   test('does not send a registration with a short password', () => {
@@ -90,6 +182,7 @@ describe('HomePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
     fill('Anna', 'long enough');
+    fireEvent.click(termsBox());
     fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
 
     expect(await screen.findByText('Questo nome utente è già in uso')).toBeInTheDocument();

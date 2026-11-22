@@ -487,6 +487,7 @@ export function createMemoryStore({ drawCooldownSeconds } = {}) {
     },
     recordPurchase: async () => {},
     recordRulesAccepted: async () => {},
+    recordTermsAccepted: async () => {},
     saveGame: async () => {},
     deleteGame: async () => {},
     findGame: async () => null,
@@ -547,8 +548,8 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
 
   async function insertPlayer(client, player) {
     await client.query(
-      "INSERT INTO players (id, name, credits, created_at) VALUES ($1, $2, 0, $3)",
-      [player.id, player.name, player.createdAt],
+      "INSERT INTO players (id, name, credits, created_at, terms_accepted_at, terms_version) VALUES ($1, $2, 0, $3, $4, $5)",
+      [player.id, player.name, player.createdAt, player.terminiAccettatiIl ?? null, player.terminiVersione ?? null],
     );
     if (player.credits !== 0) {
       await applyMovement(client, {
@@ -679,7 +680,7 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
      */
     async loadState() {
       const [playerRows, gameRows] = await Promise.all([
-        pool.query("SELECT id, name, credits, created_at, rules_accepted_at FROM players WHERE deleted_at IS NULL"),
+        pool.query("SELECT id, name, credits, created_at, rules_accepted_at, terms_accepted_at, terms_version FROM players WHERE deleted_at IS NULL"),
         pool.query("SELECT state FROM games WHERE status <> 'finished'"),
       ]);
 
@@ -691,6 +692,8 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
           credits: Number(row.credits),
           currentGameId: null,
           regoleAccettateIl: row.rules_accepted_at ? row.rules_accepted_at.toISOString() : null,
+          terminiAccettatiIl: row.terms_accepted_at ? row.terms_accepted_at.toISOString() : null,
+          terminiVersione: row.terms_version ?? null,
           createdAt: row.created_at.toISOString(),
         };
       }
@@ -1431,6 +1434,19 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
       await pool.query(
         "UPDATE players SET rules_accepted_at = $2, updated_at = now() WHERE id = $1",
         [playerId, isoDate],
+      );
+    },
+
+    /**
+     * Save that the player accepted the terms of use, with the date and the version of the texts
+     * @param {string} playerId - Player ID
+     * @param {string} isoDate - When the player accepted
+     * @param {string} version - Version of the texts that were accepted
+     */
+    async recordTermsAccepted(playerId, isoDate, version) {
+      await pool.query(
+        "UPDATE players SET terms_accepted_at = $2, terms_version = $3, updated_at = now() WHERE id = $1",
+        [playerId, isoDate, version],
       );
     },
 

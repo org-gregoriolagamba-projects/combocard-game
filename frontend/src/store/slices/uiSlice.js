@@ -14,7 +14,10 @@ const initialState = {
   vittoriaRecente: null,
   
   // Screen navigation
-  currentScreen: "home", // home, hall, lobby, game, admin
+  currentScreen: "home", // home, hall, lobby, game, admin, informativa, termini
+
+  // The screen to go back to from the privacy notice or the terms of use
+  legalReturn: null,
   
   // Modals
   modals: {
@@ -51,6 +54,18 @@ const uiSlice = createSlice({
     setScreen: (state, action) => {
       state.currentScreen = action.payload;
     },
+    // The privacy notice and the terms of use: public, they open from the footer, the registration
+    // and the acceptance, and "Indietro" goes back to where the player was
+    showLegal: (state, action) => {
+      if (state.currentScreen !== "informativa" && state.currentScreen !== "termini") {
+        state.legalReturn = state.currentScreen;
+      }
+      state.currentScreen = action.payload;
+    },
+    closeLegal: (state) => {
+      state.currentScreen = state.legalReturn ?? "home";
+      state.legalReturn = null;
+    },
     openModal: (state, action) => {
       state.modals[action.payload] = true;
     },
@@ -81,6 +96,8 @@ export const {
   removeToast,
   clearToasts,
   setScreen,
+  showLegal,
+  closeLegal,
   openModal,
   closeModal,
   setLoading,

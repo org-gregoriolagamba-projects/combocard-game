@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { PASSWORD, uniqueUsername } from '../helpers/auth.js';
+import { PASSWORD, acceptTermsOnForm, uniqueUsername } from '../helpers/auth.js';
 
 const usernameInput = (page) => page.getByLabel(/nome utente/i);
 const passwordInput = (page) => page.getByLabel(/password/i);
@@ -23,6 +23,7 @@ async function signUp(page, username = uniqueUsername('Ui')) {
   await page.getByRole('button', { name: /crea un account/i }).click();
   await usernameInput(page).fill(username);
   await passwordInput(page).fill(PASSWORD);
+  await acceptTermsOnForm(page);
   await page.getByRole('button', { name: /registrati/i }).click();
   await confirmRules(page);
   await expect(hallHeading(page)).toBeVisible({ timeout: 10000 });
@@ -75,6 +76,7 @@ test.describe('Homepage', () => {
     await page.getByRole('button', { name: /crea un account/i }).click();
     await usernameInput(page).fill(username);
     await passwordInput(page).fill(PASSWORD);
+    await acceptTermsOnForm(page);
     await page.getByRole('button', { name: /registrati/i }).click();
 
     await expect(page.getByText('Questo nome utente è già in uso').first()).toBeVisible();

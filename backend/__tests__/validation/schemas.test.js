@@ -6,6 +6,7 @@ import { jest } from '@jest/globals';
 import { validate } from '../../src/middleware/validation.middleware.js';
 import {
   registerSchema,
+  acceptTermsSchema,
   loginSchema,
   buyCreditsSchema,
   createGameSchema,
@@ -28,13 +29,23 @@ const isValid = (schema, body) => !schema.validate(body).error;
 
 describe('registerSchema', () => {
   const password = 'long enough';
+  const terms = { acceptTerms: true, termsVersion: '2026-1' };
 
   test('trims the username', () => {
-    expect(registerSchema.validate({ username: '  Anna ', password }).value.username).toBe('Anna');
+    expect(registerSchema.validate({ username: '  Anna ', password, ...terms }).value.username).toBe('Anna');
   });
 
   test.each(['Anna', 'Maria Rossi', 'anna_99', 'José.M-1', '日本語'])('accepts the username %j', (username) => {
-    expect(isValid(registerSchema, { username, password })).toBe(true);
+    expect(isValid(registerSchema, { username, password, ...terms })).toBe(true);
+  });
+
+  test.each([
+    ['without acceptTerms', { username: 'Anna', password, termsVersion: '2026-1' }],
+    ['with acceptTerms false', { username: 'Anna', password, acceptTerms: false, termsVersion: '2026-1' }],
+    ['with a termsVersion that is not the current one', { username: 'Anna', password, acceptTerms: true, termsVersion: '2025-1' }],
+    ['without termsVersion', { username: 'Anna', password, acceptTerms: true }],
+  ])('rejects a registration %s', (_label, body) => {
+    expect(isValid(registerSchema, body)).toBe(false);
   });
 
   test.each([
@@ -51,6 +62,16 @@ describe('registerSchema', () => {
     [{ username: 'Anna', password: 12345678 }],
   ])('rejects %j', (body) => {
     expect(isValid(registerSchema, body)).toBe(false);
+  });
+});
+
+describe('acceptTermsSchema', () => {
+  test('accepts a version', () => {
+    expect(isValid(acceptTermsSchema, { version: '2026-1' })).toBe(true);
+  });
+
+  test.each([[{}], [{ version: 5 }], [{ version: '' }], [{ version: 'x'.repeat(33) }]])('rejects %j', (body) => {
+    expect(isValid(acceptTermsSchema, body)).toBe(false);
   });
 });
 
@@ -145,12 +166,12 @@ describe('startJollySchema', () => {
 
 describe('validate middleware', () => {
   test('replaces the body with the validated value, without unknown fields', () => {
-    const req = { body: { username: ' Anna ', password: 'long enough', admin: true } };
+    const req = { body: { username: ' Anna ', password: 'long enough', acceptTerms: true, termsVersion: '2026-1', admin: true } };
     const next = jest.fn();
 
     validate(registerSchema)(req, {}, next);
 
-    expect(req.body).toEqual({ username: 'Anna', password: 'long enough' });
+    expect(req.body).toEqual({ username: 'Anna', password: 'long enough', acceptTerms: true, termsVersion: '2026-1' });
     expect(next).toHaveBeenCalledWith();
   });
 

@@ -17,6 +17,7 @@ import {
   settleGamePlayer,
 } from "../services/game.service.js";
 import { trovaMiglioreConversioneJolly } from "../services/jolly.service.js";
+import { assertTermsAccepted } from "../services/player.service.js";
 import {
   CREDIT_MOVEMENT,
   trackCredits,
@@ -90,6 +91,8 @@ export const createGame = asyncHandler(async (req, res) => {
   if (!player) {
     throw new AppError("Player not found", 404);
   }
+
+  assertTermsAccepted(player);
 
   if (activeGameOf(req.gameState, playerId)) {
     throw new AppError("You are already in another game", 400);
@@ -192,6 +195,9 @@ export const joinGame = asyncHandler(async (req, res) => {
   if (existingPlayer) {
     throw new AppError("Already in game", 400);
   }
+
+  // Who is already in the game is not interrupted (the answers above); a new player accepts first
+  assertTermsAccepted(player);
 
   if (activeGameOf(req.gameState, playerId)) {
     throw new AppError("You are already in another game", 400);

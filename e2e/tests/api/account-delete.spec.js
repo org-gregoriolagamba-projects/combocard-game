@@ -8,7 +8,7 @@
  */
 
 import { test, expect, request as playwrightRequest } from '@playwright/test';
-import { PASSWORD, registerPlayer } from '../helpers/auth.js';
+import { PASSWORD, TERMS, registerPlayer } from '../helpers/auth.js';
 import { E2E_DATABASE_URL, promoteToAdmin } from '../helpers/admin.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
@@ -37,10 +37,10 @@ test.describe('Deletion of one\'s own account', () => {
 
     expect(response.status()).toBe(200);
     expect((await response.json()).data).toEqual({ playerId: player.id, credits: 200 });
-    expect((await context.post(`${API_URL}/api/auth/login`, { data: { username: player.name, password: PASSWORD } })).status()).toBe(401);
+    expect((await context.post(`${API_URL}/api/auth/login`, { data: { username: player.name, password: PASSWORD, ...TERMS } })).status()).toBe(401);
     expect((await context.get(`${API_URL}/api/players/${player.id}`, { headers: player.headers })).status()).toBe(401);
     expect((await context.post(`${API_URL}/api/auth/refresh`)).status()).toBe(200);
-    const again = await context.post(`${API_URL}/api/auth/register`, { data: { username: player.name, password: PASSWORD } });
+    const again = await context.post(`${API_URL}/api/auth/register`, { data: { username: player.name, password: PASSWORD, ...TERMS } });
     expect(again.status()).toBe(201);
     await context.dispose();
   });

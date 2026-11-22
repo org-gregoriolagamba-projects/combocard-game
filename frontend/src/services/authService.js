@@ -5,6 +5,7 @@
  */
 
 import api, { refreshSession, setAccessToken } from "./api";
+import { LEGALE } from "../config/legale";
 
 const startSession = (session) => {
   setAccessToken(session.accessToken);
@@ -12,13 +13,19 @@ const startSession = (session) => {
 };
 
 /**
- * Create an account
+ * Create an account. The registration carries the acceptance of the terms of use, with the
+ * version of the texts the app shows.
  * @param {string} username - Username
  * @param {string} password - Password
  * @returns {Promise<Object>} { accessToken, player, role }
  */
 export const register = async (username, password) => {
-  const response = await api.post("/auth/register", { username, password });
+  const response = await api.post("/auth/register", {
+    username,
+    password,
+    acceptTerms: true,
+    termsVersion: LEGALE.versione,
+  });
   return startSession(response.data);
 };
 

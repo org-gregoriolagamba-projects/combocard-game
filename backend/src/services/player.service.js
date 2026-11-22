@@ -7,14 +7,19 @@
 import { generateId } from "../utils/card.utils.js";
 import { AppError } from "../utils/AppError.js";
 import config from "../config/index.js";
+import { TERMS_VERSION } from "../config/legale.js";
 
 /**
  * Register a new player
  * @param {Object} gameState - Global game state
  * @param {string} playerName - Player name
+ * @param {Object} [options]
+ * @param {string|null} [options.termsVersion] - Version of the terms the player accepted: a
+ *   registration carries the acceptance, so the current version is the default. null creates a
+ *   player who has accepted nothing.
  * @returns {Object} Created player
  */
-export function registerPlayer(gameState, playerName) {
+export function registerPlayer(gameState, playerName, { termsVersion = TERMS_VERSION } = {}) {
   if (!playerName || playerName.trim().length === 0) {
     throw new AppError("Player name is required", 400);
   }
@@ -28,6 +33,9 @@ export function registerPlayer(gameState, playerName) {
     currentGameId: null,
     // When the player confirmed that they read the rules; null until then
     regoleAccettateIl: null,
+    // When the player accepted the terms of use, and which version of the texts; null until then
+    terminiAccettatiIl: termsVersion ? new Date().toISOString() : null,
+    terminiVersione: termsVersion ?? null,
     createdAt: new Date().toISOString(),
   };
 
@@ -82,6 +90,43 @@ export function acceptRules(gameState, playerId) {
     player.regoleAccettateIl = new Date().toISOString();
   }
   return player;
+}
+
+/**
+ * Mark that the player accepted the terms of use, with the version of the texts
+ * @param {Object} gameState - Global game state
+ * @param {string} playerId - Player ID
+ * @param {string} version - Version that was accepted
+ * @returns {Object} Updated player
+ */
+export function acceptTerms(gameState, playerId, version) {
+  const player = getPlayer(gameState, playerId);
+  if (player.terminiVersione !== version) {
+    player.terminiAccettatiIl = new Date().toISOString();
+    player.terminiVersione = version;
+  }
+  return player;
+}
+
+/**
+ * Refuse a player who has not accepted the current terms of use. The screen asks for the
+ * acceptance, but a client could skip the screen.
+ * @param {Object} player - Player
+ * @throws {AppError} 403 with the code TERMS_REQUIRED
+ */
+export function assertTermsAccepted(player) {
+  if (player.terminiVersione !== TERMS_VERSION) {
+    throw Object.assign(new AppError("You must accept the terms of use first", 403), { code: "TERMS_REQUIRED" });
+  }
+}
+
+/**
+ * The player as the owner of the account sees it: with what is left to accept
+ * @param {Object} player - Player
+ * @returns {Object} Copy of the player with `terminiDaAccettare`
+ */
+export function toPlayerView(player) {
+  return { ...player, terminiDaAccettare: player.terminiVersione !== TERMS_VERSION };
 }
 
 /**
