@@ -135,6 +135,43 @@ describe('createPostgresStore', () => {
     expect(players.p2.regoleAccettateIl).toBeNull();
   });
 
+  test('recordTermsAccepted saves the date and the version of the acceptance with the player', async () => {
+    const pool = createFakePool();
+
+    await createPostgresStore(pool).recordTermsAccepted('p1', '2026-11-22T10:00:00.000Z', '2026-1');
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('terms_accepted_at = $2'),
+      ['p1', '2026-11-22T10:00:00.000Z', '2026-1'],
+    );
+  });
+
+  test('loadState brings back who has accepted the terms, and with which version', async () => {
+    const pool = createFakePool();
+    pool.query = jest.fn(async (sql) => ({
+      rows: sql.includes('FROM players')
+        ? [
+            {
+              id: 'p1', name: 'Anna', credits: '10', created_at: new Date('2026-01-01'),
+              terms_accepted_at: new Date('2026-11-22T10:00:00.000Z'), terms_version: '2026-1',
+            },
+            { id: 'p2', name: 'Bruno', credits: '0', created_at: new Date('2026-01-01'), terms_accepted_at: null, terms_version: null },
+          ]
+        : [],
+    }));
+
+    const { players } = await createPostgresStore(pool).loadState();
+
+    expect(players.p1.terminiAccettatiIl).toBe('2026-11-22T10:00:00.000Z');
+    expect(players.p1.terminiVersione).toBe('2026-1');
+    expect(players.p2.terminiAccettatiIl).toBeNull();
+    expect(players.p2.terminiVersione).toBeNull();
+  });
+
+  test('the memory store ignores recordTermsAccepted, like recordRulesAccepted', async () => {
+    await expect(createMemoryStore().recordTermsAccepted('p1', '2026-11-22T10:00:00.000Z', '2026-1')).resolves.toBeUndefined();
+  });
+
   test('writes for the same game do not overlap and the last state wins', async () => {
     let active = 0;
     let maxActive = 0;

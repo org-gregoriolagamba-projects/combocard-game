@@ -707,6 +707,53 @@ describeWithDb('PostgreSQL store', () => {
     });
   });
 
+  describe('acceptance of the terms', () => {
+    const accepted = { ...player, terminiAccettatiIl: '2026-11-22T10:00:00.000Z', terminiVersione: '2026-1' };
+    const columns = async (id = 'p1') => {
+      const { rows } = await pool.query('SELECT terms_accepted_at, terms_version FROM players WHERE id = $1', [id]);
+      return rows[0];
+    };
+
+    test('a player created before the migration has no acceptance', async () => {
+      await store.createAccount(player, { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' });
+
+      expect(await columns()).toEqual({ terms_accepted_at: null, terms_version: null });
+    });
+
+    test('createAccount saves the acceptance carried by the player, and loadState brings it back', async () => {
+      await store.createAccount(accepted, { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' });
+
+      const row = await columns();
+      expect(row.terms_accepted_at.toISOString()).toBe('2026-11-22T10:00:00.000Z');
+      expect(row.terms_version).toBe('2026-1');
+      const { players } = await createPostgresStore(pool).loadState();
+      expect(players.p1.terminiAccettatiIl).toBe('2026-11-22T10:00:00.000Z');
+      expect(players.p1.terminiVersione).toBe('2026-1');
+    });
+
+    test('recordTermsAccepted updates the row', async () => {
+      await store.createAccount(player, { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' });
+
+      await store.recordTermsAccepted('p1', '2026-11-23T08:00:00.000Z', '2026-2');
+
+      const row = await columns();
+      expect(row.terms_accepted_at.toISOString()).toBe('2026-11-23T08:00:00.000Z');
+      expect(row.terms_version).toBe('2026-2');
+    });
+
+    test('deleting the account keeps the acceptance, and the name is anonymized', async () => {
+      const admin = { type: 'system' };
+      await store.createAccount(accepted, { username: 'Anna', usernameKey: 'anna', passwordHash: 'hash' });
+
+      await store.deleteAccount('p1', { actor: admin, reason: 'x' });
+
+      const { rows: [row] } = await pool.query('SELECT name, terms_accepted_at, terms_version FROM players WHERE id = $1', ['p1']);
+      expect(row.name).toBe('Utente eliminato');
+      expect(row.terms_accepted_at.toISOString()).toBe('2026-11-22T10:00:00.000Z');
+      expect(row.terms_version).toBe('2026-1');
+    });
+  });
+
   describe('deleteAccount', () => {
     const system = { type: 'system' };
     const admin = { type: 'player', id: 'p9' };
