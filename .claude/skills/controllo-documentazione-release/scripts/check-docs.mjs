@@ -9,6 +9,12 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
+// Un'opzione scritta male non va ignorata: la release sembrerebbe controllata e non lo è
+const unknownFlag = args.find((a) => a.startsWith('--') && a !== '--release');
+if (unknownFlag) {
+  console.error(`Opzione sconosciuta: ${unknownFlag}. Uso: node check-docs.mjs [radice] [--release]`);
+  process.exit(2);
+}
 const release = args.includes('--release');
 const rootArg = args.find((a) => !a.startsWith('--'));
 const root = path.resolve(rootArg ?? execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim());
@@ -194,20 +200,35 @@ if (new Set(versions.map((v) => v[1])).size > 1) warn('versioni', `i pacchetti h
 // La versione dei termini è una costante per lato: se differiscono il server rifiuta ogni accettazione.
 // I valori `null` di legale.js e l'e-mail di contatto vanno impostati prima di pubblicare: sono avvisi
 // durante lo sviluppo e errori con --release.
-const legaleFront = tryRead('frontend/src/config/legale.js');
-const legaleBack = tryRead('backend/src/config/legale.js');
+const LEGALE_FRONT = 'frontend/src/config/legale.js';
+const LEGALE_BACK = 'backend/src/config/legale.js';
+const CONTATTI_FRONT = 'frontend/src/config/contatti.js';
+const legaleFront = tryRead(LEGALE_FRONT);
+const legaleBack = tryRead(LEGALE_BACK);
 const versionFront = legaleFront.match(/versione:\s*["']([^"']+)["']/)?.[1];
 const versionBack = legaleBack.match(/TERMS_VERSION\s*=\s*["']([^"']+)["']/)?.[1];
+// Se un file non c'è o la versione non si legge, i controlli passerebbero in silenzio: è un errore
+for (const [file, source, version] of [[LEGALE_FRONT, legaleFront, versionFront], [LEGALE_BACK, legaleBack, versionBack]]) {
+  if (!source) error('testi legali', `${file} non si legge: i controlli sui testi legali non possono girare`);
+  else if (!version) error('testi legali', `non trovo la versione dei termini in ${file}`);
+}
 if (versionFront && versionBack && versionFront !== versionBack) {
   error('testi legali', `la versione dei termini è diversa: backend ${versionBack}, frontend ${versionFront}`);
 }
 const legalValue = release ? error : warn;
 const withoutComments = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
-for (const m of withoutComments(legaleFront).matchAll(/(\w+):\s*null\b/g)) {
-  legalValue('frontend/src/config/legale.js', `${m[1]} non impostato: va indicato prima di pubblicare`);
+const legaleCode = withoutComments(legaleFront);
+// I valori dentro `hosting: { ... }` si chiamano hosting.nome e hosting.paese, gli altri col loro nome
+const hostingBlock = legaleCode.match(/hosting:\s*\{([^}]*)\}/)?.[1] ?? '';
+const unset = [
+  ...[...hostingBlock.matchAll(/(\w+):\s*null\b/g)].map((m) => `hosting.${m[1]}`),
+  ...[...legaleCode.replace(/hosting:\s*\{[^}]*\}/, '').matchAll(/(\w+):\s*null\b/g)].map((m) => m[1]),
+];
+for (const name of unset) {
+  legalValue(LEGALE_FRONT, `${name} non impostato: va indicato prima di pubblicare`);
 }
-if (/\bemail:\s*null\b/.test(withoutComments(tryRead('frontend/src/config/contatti.js')))) {
-  legalValue('frontend/src/config/contatti.js', 'email non impostata: l\'informativa ne ha bisogno prima di pubblicare');
+if (/\bemail:\s*null\b/.test(withoutComments(tryRead(CONTATTI_FRONT)))) {
+  legalValue(CONTATTI_FRONT, 'email non impostata: l\'informativa ne ha bisogno prima di pubblicare');
 }
 
 // Esito ----------------------------------------------------------------------------------------

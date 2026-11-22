@@ -9,6 +9,7 @@
 import React, { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { acceptTerms, logout } from "../../store/slices/playerSlice";
+import DeleteAccountDialog from "../game/DeleteAccountDialog";
 import { LinkTesto } from "./LegalLayout";
 
 function TerminiGate() {
@@ -16,6 +17,7 @@ function TerminiGate() {
   const { id: playerId, name: playerName, error } = useSelector((state) => state.player);
   const inFlight = useRef(false);
   const [dichiarato, setDichiarato] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   // A double tap must not send two acceptances: the ref answers at once, the state would not
   const conferma = async () => {
@@ -78,9 +80,19 @@ function TerminiGate() {
             >
               Non sei {playerName}? Esci dall&apos;account
             </button>
+
+            <button
+              type="button"
+              onClick={() => setShowDelete(true)}
+              className="min-h-[44px] w-full [overflow-wrap:anywhere] text-sm font-bold text-testo-3 underline decoration-2 underline-offset-4 hover:text-coppe"
+            >
+              Non accetto: elimina il mio account
+            </button>
           </div>
         </main>
       </div>
+
+      {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
     </div>
   );
 }

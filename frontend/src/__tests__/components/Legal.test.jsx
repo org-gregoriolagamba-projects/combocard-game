@@ -87,6 +87,48 @@ describe('InformativaScreen', () => {
     expect(within(section).getByText(/indirizzo IP/)).toBeInTheDocument();
   });
 
+  test('says who can see the username: the players of the games, and everybody in the hall for the first player of a waiting game', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    const section = screen.getByRole('heading', { name: 'Quali dati trattiamo' }).closest('section');
+    expect(within(section).getByText(/chiunque sia nella hall/)).toBeInTheDocument();
+  });
+
+  test('the register covers also what the player does on the account, and says that the reasons written by hand stay', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    expect(screen.getByText(/cambi la password/)).toBeInTheDocument();
+    const section = screen.getByRole('heading', { name: 'Per quanto tempo li conserviamo' }).closest('section');
+    expect(within(section).getByText(/motivi scritti a mano/)).toBeInTheDocument();
+  });
+
+  test('lists the dates and the sessions that are kept, and says there is no fixed expiry', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    const dati = screen.getByRole('heading', { name: 'Quali dati trattiamo' }).closest('section');
+    expect(within(dati).getByText(/data di creazione dell'account/)).toBeInTheDocument();
+    expect(within(dati).getByText(/sessioni aperte/)).toBeInTheDocument();
+    const tempi = screen.getByRole('heading', { name: 'Per quanto tempo li conserviamo' }).closest('section');
+    expect(within(tempi).getByText(/senza una scadenza/)).toBeInTheDocument();
+  });
+
+  test('the cookie lasts 7 days from the last use, and the two preferences of the browser are named', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    expect(screen.getByText(/dall'ultimo utilizzo/)).toBeInTheDocument();
+    const cookie = screen.getByRole('heading', { name: 'Cookie' }).closest('section');
+    expect(within(cookie).getByText(/due preferenze tecniche/)).toBeInTheDocument();
+  });
+
+  test('the deletion of the account is not possible while the player is in a game, in both texts', () => {
+    const { unmount } = renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+    expect(screen.getByText(/mentre sei in una partita/)).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<TerminiScreen />, { preloadedState: ui('termini') });
+    expect(screen.getByText(/mentre sei in una partita/)).toBeInTheDocument();
+  });
+
   test('a value that is not set shows [da indicare], and none when everything is set', () => {
     const { unmount } = renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
     expect(screen.getAllByTestId('da-indicare').length).toBeGreaterThanOrEqual(3);

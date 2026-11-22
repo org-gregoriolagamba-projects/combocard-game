@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import { HomePage } from '../../pages';
 import { renderWithProviders } from '../test-utils';
 import { setAccessToken } from '../../services/api';
+import { clearDraft } from '../../utils/formDraft';
 
 vi.mock('../../services/socketService', () => ({
   __esModule: true,
@@ -29,6 +30,7 @@ describe('HomePage', () => {
   let errorSpy;
 
   beforeEach(() => {
+    clearDraft();
     setAccessToken(null);
     global.fetch = vi.fn();
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -117,6 +119,40 @@ describe('HomePage', () => {
         acceptTerms: true,
         termsVersion: '2026-1',
       });
+    });
+
+    test('opening a text from the form keeps what was typed for when the player comes back', () => {
+      const first = renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+      fireEvent.click(termsBox());
+
+      fireEvent.click(screen.getByRole('button', { name: "Termini d'uso" }));
+      first.unmount();
+      renderWithProviders(<HomePage />);
+
+      expect(screen.getByLabelText(/nome utente/i)).toHaveValue('Anna');
+      expect(screen.getByLabelText(/password/i)).toHaveValue('long enough');
+      expect(termsBox()).toBeChecked();
+      expect(screen.getByRole('button', { name: /registrati/i })).toBeInTheDocument();
+    });
+
+    test('a registration that went through leaves nothing to restore', async () => {
+      global.fetch.mockResolvedValue(jsonResponse(201, session));
+      const first = renderWithProviders(<HomePage />);
+      fireEvent.click(screen.getByRole('button', { name: /crea un account/i }));
+      fill('Anna', 'long enough');
+      fireEvent.click(termsBox());
+      fireEvent.click(screen.getByRole('button', { name: "Termini d'uso" }));
+      fireEvent.click(screen.getByRole('button', { name: /registrati/i }));
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(first.store.getState().ui.currentScreen).toBe('hall'));
+      first.unmount();
+
+      renderWithProviders(<HomePage />);
+
+      expect(screen.getByLabelText(/nome utente/i)).toHaveValue('');
+      expect(screen.queryByLabelText(/Ho letto l'informativa/)).not.toBeInTheDocument();
     });
 
     test('the links of the box open the two texts and do not tick it', () => {

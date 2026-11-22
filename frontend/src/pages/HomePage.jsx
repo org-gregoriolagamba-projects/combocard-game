@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
 import { showLegal } from "../store/slices/uiSlice";
+import { clearDraft, readDraft, saveDraft } from "../utils/formDraft";
 import Seme from "../components/game/Seme";
 import { Footer } from "../components/common";
 import { INCHIOSTRO_SEME } from "../utils";
@@ -20,12 +21,14 @@ function HomePage() {
   const dispatch = useDispatch();
   const { isLoading, error } = useSelector((state) => state.player);
 
-  const [isRegistering, setIsRegistering] = useState(false);
+  // What was typed before the player opened a text from this form (an empty form otherwise)
+  const [draft] = useState(readDraft);
+  const [isRegistering, setIsRegistering] = useState(draft.isRegistering);
   const [formError, setFormError] = useState(null);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState(draft.username);
+  const [password, setPassword] = useState(draft.password);
   // The registration carries the acceptance of the terms of use and the privacy notice
-  const [accepted, setAccepted] = useState(false);
+  const [accepted, setAccepted] = useState(draft.accepted);
   const [termsError, setTermsError] = useState(false);
   const termsBox = useRef(null);
 
@@ -35,6 +38,12 @@ function HomePage() {
   const clearMessage = () => {
     setFormError(null);
     dispatch(clearError());
+  };
+
+  // Opening a text leaves the page: keep what was typed for when the player comes back
+  const openLegal = (screen) => {
+    saveDraft({ isRegistering, username, password, accepted });
+    dispatch(showLegal(screen));
   };
 
   const handleToggleMode = () => {
@@ -73,6 +82,7 @@ function HomePage() {
     try {
       const action = isRegistering ? registerAccount : login;
       const { player, mustChangePassword } = await dispatch(action({ username, password })).unwrap();
+      clearDraft();
       // With a temporary password the server refuses the game: the app asks for a new password first
       if (!mustChangePassword) {
         await dispatch(enterGameOrHall(player));
@@ -177,14 +187,14 @@ function HomePage() {
               <p className="flex flex-wrap items-center gap-x-4 text-sm text-testo-2">
                 <button
                   type="button"
-                  onClick={() => dispatch(showLegal("informativa"))}
+                  onClick={() => openLegal("informativa")}
                   className="min-h-[44px] rounded-lg font-bold text-testo underline decoration-2 underline-offset-4"
                 >
                   Informativa sulla privacy
                 </button>
                 <button
                   type="button"
-                  onClick={() => dispatch(showLegal("termini"))}
+                  onClick={() => openLegal("termini")}
                   className="min-h-[44px] rounded-lg font-bold text-testo underline decoration-2 underline-offset-4"
                 >
                   Termini d&apos;uso

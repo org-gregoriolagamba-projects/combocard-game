@@ -69,6 +69,14 @@ describe('TerminiGate: "Prima di continuare"', () => {
     expect(store.getState().ui.currentScreen).toBe('termini');
   });
 
+  test('who does not accept can delete the account from here, as the notice says', () => {
+    renderWithProviders(<TerminiGate />, { preloadedState: state() });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Non accetto: elimina il mio account' }));
+
+    expect(screen.getByRole('dialog', { name: 'Elimina il mio account' })).toBeInTheDocument();
+  });
+
   test('"Esci" logs out', async () => {
     const authService = await import('../../services/authService');
     authService.logout.mockResolvedValue(undefined);

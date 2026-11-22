@@ -32,25 +32,32 @@ function InformativaScreen() {
 
       <Sezione titolo="Quali dati trattiamo">
         <ul>
-          <li>Il <strong>nome utente</strong> che scegli: lo vedono gli altri giocatori delle partite a cui partecipi.</li>
+          <li>
+            Il <strong>nome utente</strong> che scegli: lo vedono gli altri giocatori delle partite a cui partecipi e, per chi
+            apre una partita in attesa, chiunque sia nella hall.
+          </li>
           <li>
             La <strong>password</strong>: la conserviamo solo come impronta cifrata (hash), mai in chiaro. Nessuno,
             nemmeno chi gestisce il gioco, può leggerla.
           </li>
-          <li>Il <strong>ruolo</strong> (giocatore o amministratore) e lo stato dell&apos;account (attivo o sospeso).</li>
+          <li>
+            Il <strong>ruolo</strong> (giocatore o amministratore), lo stato dell&apos;account (attivo o sospeso) e la data di
+            creazione dell&apos;account.
+          </li>
           <li>
             I <strong>crediti</strong> di gioco e i loro movimenti: il saldo, i crediti presi, le quote d&apos;ingresso, i premi e i
             rimborsi.
           </li>
           <li>Le <strong>partite</strong> e le <strong>statistiche</strong>: le partite giocate, le collezioni vinte, gli importi.</li>
           <li>
-            Il <strong>registro delle operazioni dell&apos;amministrazione</strong>: se un amministratore interviene sul tuo account (per
-            esempio una sospensione o una rettifica dei crediti) resta una riga con chi, che cosa e perché. Non contiene
-            mai la tua password.
+            Il <strong>registro delle operazioni</strong>: se un amministratore interviene sul tuo account (per esempio una
+            sospensione o una rettifica dei crediti), o se tu cambi la password o elimini l&apos;account, resta una riga con
+            chi, che cosa, quando e, per l&apos;amministrazione, il perché. Non contiene mai la tua password.
           </li>
-          <li>La <strong>data e la versione</strong> dei termini d&apos;uso che hai accettato.</li>
+          <li>La <strong>data e la versione</strong> dei termini d&apos;uso che hai accettato, e la data in cui hai confermato di aver letto le regole.</li>
           <li>
-            Un <strong>cookie di sessione</strong>, tecnico, che serve a tenerti collegato (vedi «Cookie»).
+            Le <strong>sessioni aperte</strong> sui tuoi dispositivi, che teniamo come identificativi cifrati, e un
+            <strong> cookie di sessione</strong>, tecnico, che serve a tenerti collegato (vedi «Cookie»).
           </li>
           <li>
             I <strong>dati tecnici dei log del server</strong>: per ogni richiesta, l&apos;indirizzo IP, la data e l&apos;ora, l&apos;indirizzo
@@ -81,14 +88,18 @@ function InformativaScreen() {
           <li>
             Quando un account viene eliminato cancelliamo il nome utente, la password e le sessioni, e il tuo nome diventa
             «Utente eliminato». Il saldo si azzera, senza rimborso. Restano, <strong>senza il tuo nome</strong>, i movimenti
-            dei crediti, le partite concluse, il registro delle operazioni dell&apos;amministrazione e la data e la versione
-            dell&apos;accettazione dei termini: servono a tenere corretti i conti e le partite degli altri giocatori e alla
-            sicurezza.
+            dei crediti, le partite concluse, il registro delle operazioni, la data di creazione dell&apos;account e le date e la versione
+            delle accettazioni: servono a tenere corretti i conti e le partite degli altri giocatori e alla sicurezza, e li
+            teniamo senza una scadenza prestabilita. I motivi scritti a mano dall&apos;amministrazione nel registro restano
+            com&apos;erano.
           </li>
           <li>
             I <strong>log del server</strong>: <Dato valore={LEGALE.conservazioneLog} />.
           </li>
-          <li>Il <strong>cookie di sessione</strong>, fino a 7 giorni o fino a quando esci.</li>
+          <li>
+            Il <strong>cookie di sessione</strong>: dura 7 giorni dall&apos;ultimo utilizzo (a ogni uso si rinnova) o fino a quando
+            esci.
+          </li>
         </ul>
       </Sezione>
 
@@ -104,7 +115,9 @@ function InformativaScreen() {
         <p>
           Puoi chiederci di accedere ai tuoi dati, correggerli, cancellarli, limitarne l&apos;uso, riceverli in un formato
           leggibile (portabilità) e opporti al trattamento (artt. 15-22 GDPR). Scrivi a <Dato valore={CONTATTI.email} />: ti
-          rispondiamo entro un mese. Puoi anche eliminare l&apos;account da solo, dalla hall, con «Elimina il mio account».
+          rispondiamo entro un mese. Puoi anche eliminare l&apos;account da solo, dalla hall, con «Elimina il mio account» (o
+          dalla schermata «Prima di continuare»). Non è possibile mentre sei in una partita in attesa o in corso: prima la
+          lasci o aspetti che finisca.
         </p>
         <p>
           Se ritieni che i tuoi dati non siano trattati correttamente puoi fare reclamo al Garante per la protezione dei dati
@@ -115,8 +128,10 @@ function InformativaScreen() {
       <Sezione titolo="Cookie">
         <p>
           ComboCard usa <strong>un solo cookie</strong>, tecnico e necessario: tiene aperta la tua sessione, ti permette di
-          riprendere dopo aver ricaricato la pagina e non può essere letto dagli script della pagina. Non usiamo cookie di
-          profilazione né di statistica, quindi non serve alcun avviso da accettare.
+          riprendere dopo aver ricaricato la pagina e non può essere letto dagli script della pagina. Il browser conserva anche
+          <strong> due preferenze tecniche</strong> sul tuo dispositivo (se hai già letto la guida della prima partita e se hai
+          disattivato i suoni), che non vengono mai inviate a noi. Non usiamo cookie di profilazione né di statistica, quindi
+          non serve alcun avviso da accettare.
         </p>
       </Sezione>
 

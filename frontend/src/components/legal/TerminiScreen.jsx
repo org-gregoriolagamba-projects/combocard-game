@@ -39,7 +39,7 @@ function TerminiScreen() {
           L&apos;amministrazione può sospendere o eliminare un account e annullare una partita (con la restituzione delle quote
           d&apos;ingresso) quando ci sono comportamenti non ammessi: imbrogliare o cercare di aggirare le regole, usare più
           account, disturbare o attaccare il servizio o gli altri giocatori, scegliere un nome utente offensivo. Puoi eliminare
-          il tuo account in ogni momento dalla hall.
+          il tuo account dalla hall, tranne mentre sei in una partita in attesa o in corso: prima la lasci o aspetti che finisca.
         </p>
       </Sezione>
 
