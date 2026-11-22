@@ -2,7 +2,15 @@
  * Authentication helpers for the API tests
  */
 
-import { LEGALE } from '../../../frontend/src/config/legale.js';
+import { readFileSync } from 'node:fs';
+
+// The version of the terms the frontend shows, read from its file as text: the frontend package is
+// not an ES module (importing the file fails on some Node versions), and a regular expression is enough
+const FRONTEND_TERMS_VERSION = readFileSync(new URL('../../../frontend/src/config/legale.js', import.meta.url), 'utf8')
+  .match(/versione:\s*["']([^"']+)["']/)?.[1];
+if (!FRONTEND_TERMS_VERSION) {
+  throw new Error('Cannot read the version of the terms from frontend/src/config/legale.js');
+}
 
 export const PASSWORD = 'test-password-123';
 
@@ -11,7 +19,7 @@ export const PASSWORD = 'test-password-123';
  * shows. The test passes only if that version is the one of the server (that is the check that the
  * two constants are aligned).
  */
-export const TERMS = { acceptTerms: true, termsVersion: LEGALE.versione };
+export const TERMS = { acceptTerms: true, termsVersion: FRONTEND_TERMS_VERSION };
 
 export const TERMS_LABEL = "Ho letto l'informativa sulla privacy e accetto i termini d'uso";
 
