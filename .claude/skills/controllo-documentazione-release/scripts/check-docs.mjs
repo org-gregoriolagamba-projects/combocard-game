@@ -157,7 +157,7 @@ for (const [doc, body] of Object.entries(text)) {
 }
 
 // 7. Percorsi e collegamenti -------------------------------------------------------------------
-const skipPath = /[<>*{}$]|^\/|^https?:|^~|^\.\.\.|\.\.\.$|node_modules|^api\//;
+const skipPath = /X\.Y\.Z|[<>*{}$]|^\/|^https?:|^~|^\.\.\.|\.\.\.$|node_modules|^api\//;
 // File che il repository non tiene (.env, build/, node_modules): i documenti li citano giustamente
 const isIgnored = (p) => ['', 'backend/', 'frontend/', 'e2e/'].some((pre) => {
   try { execFileSync('git', ['check-ignore', '-q', pre + p], { cwd: root, stdio: 'ignore' }); return true; } catch { return false; }

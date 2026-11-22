@@ -385,6 +385,8 @@ The same command is the way out if no admin is left, and `--demote` makes an adm
 
 ### Before Opening to the Public
 
+- **Legal texts:** the privacy notice and the terms of use show "[da indicare]" for what is not set yet. Before publishing set the contact e-mail (`email` in `frontend/src/config/contatti.js`, an address of the domain) and, in `frontend/src/config/legale.js`, the hosting (`hosting.nome`, `hosting.paese`), how long the server logs are kept (`conservazioneLog`) and the day the texts come into force (`vigenteDal`), then build the frontend again. `node .claude/skills/controllo-documentazione-release/scripts/check-docs.mjs --release` stops the release while one is missing. The texts do not replace a legal opinion: have them reviewed.
+- **Players already registered:** at the first access after the update they see a screen to accept the terms of use before they can create or join a game or take credits; a game in progress is not interrupted.
 - **Free credits:** the cash desk adds credits without any payment, which is fine only as long as they have no real value.
 - **Forgotten passwords:** there is no way to recover them yet.
 

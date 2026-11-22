@@ -133,7 +133,7 @@ npm start
 ### Auth Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | Create an account and start a session |
+| POST | `/api/auth/register` | Create an account (with the acceptance of the terms of use) and start a session |
 | POST | `/api/auth/login` | Start a session |
 | POST | `/api/auth/refresh` | Get a new access token from the refresh cookie |
 | POST | `/api/auth/logout` | End the session on this device |
@@ -147,6 +147,7 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 |--------|----------|-------------|
 | GET | `/api/players/:playerId` | Get your own player |
 | POST | `/api/players/:playerId/accept-rules` | Confirm that you read and understood the rules (once; a game does not start until all its players have) |
+| POST | `/api/players/:playerId/accept-terms` | Accept the terms of use, with the version of the texts you saw (creating or joining a game and buying credits need it) |
 | POST | `/api/players/:playerId/buy-credits` | Buy credits for your own player |
 
 ### Game Routes
