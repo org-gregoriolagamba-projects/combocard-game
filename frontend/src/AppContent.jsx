@@ -20,6 +20,7 @@ import { HomePage } from "./pages";
 import { HallScreen, LobbyScreen, GameScreen, RegoleScreen, ChangePasswordScreen, StoricoScreen } from "./components/game";
 import { AdminScreen } from "./components/admin";
 import { LoadingSpinner } from "./components/common";
+import { InformativaScreen, TerminiScreen, TerminiGate } from "./components/legal";
 
 function AppContent() {
   const dispatch = useDispatch();
@@ -27,6 +28,7 @@ function AppContent() {
   const sessionChecked = useSelector((state) => state.player.sessionChecked);
   const playerId = useSelector((state) => state.player.id);
   const regoleAccettateIl = useSelector((state) => state.player.regoleAccettateIl);
+  const terminiDaAccettare = useSelector((state) => state.player.terminiDaAccettare);
   const role = useSelector((state) => state.player.role);
   const mustChangePassword = useSelector((state) => state.player.mustChangePassword);
 
@@ -61,9 +63,23 @@ function AppContent() {
     );
   }
 
+  // The privacy notice and the terms of use are public: they open with or without an account, and
+  // from the screen that asks to accept them
+  if (currentScreen === "informativa") {
+    return <InformativaScreen />;
+  }
+  if (currentScreen === "termini") {
+    return <TerminiScreen />;
+  }
+
   // A temporary password comes before everything, the rules included
   if (playerId && mustChangePassword) {
     return <ChangePasswordScreen />;
+  }
+
+  // A player who has not accepted the current terms of use accepts them before the rules
+  if (playerId && terminiDaAccettare === true) {
+    return <TerminiGate />;
   }
 
   // A player who never confirmed the rules reads them before anything else

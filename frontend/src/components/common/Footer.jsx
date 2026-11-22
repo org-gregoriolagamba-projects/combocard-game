@@ -2,16 +2,23 @@
  * Footer
  *
  * At the foot of the login screen and of the hall: the name of the app with its trademark sign,
- * the copyright, the version, and the link to the "Info e contatti" dialog.
+ * the copyright, the version, the link to the "Info e contatti" dialog and the links to the privacy
+ * notice and to the terms of use.
  * The sign is ™ and not ®, because the trademark is not registered.
  */
 
 import React, { useState } from "react";
+import { useDispatch } from "react-redux";
 import InfoDialog from "./InfoDialog";
+import { showLegal } from "../../store/slices/uiSlice";
 import { APP_VERSION, BUILD_DATE, copyrightYears } from "../../config/buildInfo";
 import { CONTATTI, MARCHIO } from "../../config/contatti";
 
+const LINK =
+  "min-h-[44px] rounded-lg px-2 font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo";
+
 function Footer() {
+  const dispatch = useDispatch();
   const [showInfo, setShowInfo] = useState(false);
 
   return (
@@ -22,12 +29,16 @@ function Footer() {
         © {copyrightYears(MARCHIO.annoInizio, BUILD_DATE)} {CONTATTI.autore}
       </p>
       <p className="flex flex-wrap items-center justify-center gap-x-2">
-        <button
-          type="button"
-          onClick={() => setShowInfo(true)}
-          className="min-h-[44px] rounded-lg px-2 font-bold text-testo-2 underline decoration-2 underline-offset-4 hover:text-testo"
-        >
+        <button type="button" onClick={() => setShowInfo(true)} className={LINK}>
           Info e contatti
+        </button>
+        <span aria-hidden="true">·</span>
+        <button type="button" onClick={() => dispatch(showLegal("informativa"))} className={LINK}>
+          Informativa
+        </button>
+        <span aria-hidden="true">·</span>
+        <button type="button" onClick={() => dispatch(showLegal("termini"))} className={LINK}>
+          Termini
         </button>
         {APP_VERSION && (
           <>

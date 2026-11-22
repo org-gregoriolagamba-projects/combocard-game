@@ -6,3 +6,4 @@
 
 export { default as InformativaScreen } from "./InformativaScreen";
 export { default as TerminiScreen } from "./TerminiScreen";
+export { default as TerminiGate } from "./TerminiGate";

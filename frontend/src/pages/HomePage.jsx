@@ -4,10 +4,11 @@
  * Entry point - Login and registration screen.
  */
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { clearError, login, registerAccount } from "../store/slices/playerSlice";
 import { enterGameOrHall } from "../store/sessionThunks";
+import { showLegal } from "../store/slices/uiSlice";
 import Seme from "../components/game/Seme";
 import { Footer } from "../components/common";
 import { INCHIOSTRO_SEME } from "../utils";
@@ -23,6 +24,10 @@ function HomePage() {
   const [formError, setFormError] = useState(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // The registration carries the acceptance of the terms of use and the privacy notice
+  const [accepted, setAccepted] = useState(false);
+  const [termsError, setTermsError] = useState(false);
+  const termsBox = useRef(null);
 
   // The message is shown in the form, once: server errors arrive already in Italian
   const message = formError ?? error;
@@ -34,6 +39,7 @@ function HomePage() {
 
   const handleToggleMode = () => {
     setIsRegistering((value) => !value);
+    setTermsError(false);
     clearMessage();
   };
 
@@ -52,6 +58,13 @@ function HomePage() {
 
     if (isRegistering && password.length < MIN_PASSWORD_LENGTH) {
       setFormError(`La password deve avere almeno ${MIN_PASSWORD_LENGTH} caratteri`);
+      return;
+    }
+
+    if (isRegistering && !accepted) {
+      setFormError(null);
+      setTermsError(true);
+      termsBox.current?.focus();
       return;
     }
 
@@ -140,6 +153,50 @@ function HomePage() {
               </p>
             )}
           </div>
+
+          {isRegistering && (
+            <div>
+              <label className="flex min-h-[44px] cursor-pointer items-start gap-3 text-testo">
+                <input
+                  ref={termsBox}
+                  type="checkbox"
+                  checked={accepted}
+                  onChange={(e) => {
+                    setAccepted(e.target.checked);
+                    setTermsError(false);
+                  }}
+                  aria-invalid={termsError ? true : undefined}
+                  aria-describedby={termsError ? "terms-error" : undefined}
+                  className="mt-1 h-5 w-5 shrink-0"
+                  disabled={isLoading}
+                />
+                <span className="min-w-0 [overflow-wrap:anywhere] text-sm font-bold">
+                  Ho letto l&apos;informativa sulla privacy e accetto i termini d&apos;uso
+                </span>
+              </label>
+              <p className="flex flex-wrap items-center gap-x-4 text-sm text-testo-2">
+                <button
+                  type="button"
+                  onClick={() => dispatch(showLegal("informativa"))}
+                  className="min-h-[44px] rounded-lg font-bold text-testo underline decoration-2 underline-offset-4"
+                >
+                  Informativa sulla privacy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dispatch(showLegal("termini"))}
+                  className="min-h-[44px] rounded-lg font-bold text-testo underline decoration-2 underline-offset-4"
+                >
+                  Termini d&apos;uso
+                </button>
+              </p>
+              {termsError && (
+                <p id="terms-error" role="alert" className="text-sm font-bold text-coppe">
+                  Per registrarti devi accettare l&apos;informativa e i termini d&apos;uso
+                </p>
+              )}
+            </div>
+          )}
 
           {message && (
             <p id="auth-error" role="alert" className="text-sm font-bold text-coppe">{message}</p>
