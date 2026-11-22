@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 // Controlli meccanici della documentazione contro il codice. Nessuna dipendenza.
-// Uso: node check-docs.mjs [radice-del-repository]
+// Uso: node check-docs.mjs [radice-del-repository] [--release]
 // Esce con 1 se trova almeno un ERRORE. Gli AVVISI vanno guardati a mano.
+// Con --release (prima di pubblicare una versione) i valori dei testi legali non ancora impostati
+// (hosting, conservazione dei log, data di entrata in vigore, e-mail di contatto) sono ERRORI.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
-const root = path.resolve(process.argv[2] ?? execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim());
+const args = process.argv.slice(2);
+const release = args.includes('--release');
+const rootArg = args.find((a) => !a.startsWith('--'));
+const root = path.resolve(rootArg ?? execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim());
 const read = (p) => readFileSync(path.join(root, p), 'utf8').replace(/\r\n/g, '\n');
 const tryRead = (p) => (existsSync(path.join(root, p)) ? read(p) : '');
 const findings = [];
@@ -15,7 +20,9 @@ const warn = (doc, msg) => findings.push(['AVVISO', doc, msg]);
 
 const docs = execFileSync('git', ['ls-files', '*.md'], { cwd: root, encoding: 'utf8' })
   .split('\n')
-  .filter((f) => f && !f.startsWith('.github/') && !f.startsWith('.claude/') && !f.includes('node_modules'))
+  // Le specifiche e i piani di lavoro (docs/superpowers) non sono documentazione del prodotto: citano
+  // rotte e variabili prima che esistano e non devono far risultare documentato ciò che non lo è
+  .filter((f) => f && !f.startsWith('.github/') && !f.startsWith('.claude/') && !f.startsWith('docs/superpowers/') && !f.includes('node_modules'))
   .filter((f) => existsSync(path.join(root, f)));
 const text = Object.fromEntries(docs.map((d) => [d, read(d)]));
 const allDocs = Object.values(text).join('\n');
@@ -182,6 +189,26 @@ if (existsSync(path.join(root, migDir)) && text['docs/DATABASE.md']) {
 // 9. Versioni ----------------------------------------------------------------------------------
 const versions = pkgFiles.map((p) => [p, JSON.parse(read(p)).version]);
 if (new Set(versions.map((v) => v[1])).size > 1) warn('versioni', `i pacchetti hanno versioni diverse: ${versions.map((v) => `${v[0]}=${v[1]}`).join(', ')}`);
+
+// 10. Testi legali -----------------------------------------------------------------------------
+// La versione dei termini è una costante per lato: se differiscono il server rifiuta ogni accettazione.
+// I valori `null` di legale.js e l'e-mail di contatto vanno impostati prima di pubblicare: sono avvisi
+// durante lo sviluppo e errori con --release.
+const legaleFront = tryRead('frontend/src/config/legale.js');
+const legaleBack = tryRead('backend/src/config/legale.js');
+const versionFront = legaleFront.match(/versione:\s*["']([^"']+)["']/)?.[1];
+const versionBack = legaleBack.match(/TERMS_VERSION\s*=\s*["']([^"']+)["']/)?.[1];
+if (versionFront && versionBack && versionFront !== versionBack) {
+  error('testi legali', `la versione dei termini è diversa: backend ${versionBack}, frontend ${versionFront}`);
+}
+const legalValue = release ? error : warn;
+const withoutComments = (src) => src.split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+for (const m of withoutComments(legaleFront).matchAll(/(\w+):\s*null\b/g)) {
+  legalValue('frontend/src/config/legale.js', `${m[1]} non impostato: va indicato prima di pubblicare`);
+}
+if (/\bemail:\s*null\b/.test(withoutComments(tryRead('frontend/src/config/contatti.js')))) {
+  legalValue('frontend/src/config/contatti.js', 'email non impostata: l\'informativa ne ha bisogno prima di pubblicare');
+}
 
 // Esito ----------------------------------------------------------------------------------------
 console.log(`Documenti letti: ${docs.length} (${docs.join(', ')})`);

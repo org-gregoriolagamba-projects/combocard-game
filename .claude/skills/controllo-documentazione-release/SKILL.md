@@ -17,9 +17,9 @@ I documenti restano indietro in silenzio: a ogni versione qualcosa cambia nel co
 
 1. **Script.** Dalla radice del repository:
    ```bash
-   node .claude/skills/controllo-documentazione-release/scripts/check-docs.mjs
+   node .claude/skills/controllo-documentazione-release/scripts/check-docs.mjs --release
    ```
-   Corregge i **documenti**, non il codice. Ogni `ERRORE` va risolto; ogni `AVVISO` va letto e corretto o motivato nel rapporto. Se un allarme è falso, correggi lo script e dillo: non ignorarlo in silenzio.
+   Senza `--release` i valori dei testi legali non ancora impostati sono avvisi (va bene durante lo sviluppo); con `--release`, prima di pubblicare, sono errori e la release non parte. Corregge i **documenti**, non il codice. Ogni `ERRORE` va risolto; ogni `AVVISO` va letto e corretto o motivato nel rapporto. Se un allarme è falso, correggi lo script e dillo: non ignorarlo in silenzio.
 2. **Rilettura.** Per ogni documento elencato dallo script leggi ciò che la macchina non vede:
 
    | Documento | Rileggi contro |
@@ -46,6 +46,7 @@ I documenti restano indietro in silenzio: a ogni versione qualcosa cambia nel co
 | Percorsi e collegamenti | un collegamento non porta a un file; (avviso) un percorso citato non esiste e non è ignorato da git |
 | Tabelle | una tabella delle migrazioni non è in `DATABASE.md` |
 | Versioni | (avviso) i quattro pacchetti hanno versioni diverse |
+| Testi legali | la versione dei termini è diversa nel backend (`config/legale.js`) e nel frontend; i valori non impostati di `frontend/src/config/legale.js` (hosting, conservazione dei log, data) e l'e-mail di `contatti.js` sono avvisi, e **errori con `--release`** |
 
 ## Scuse da non accettare
 
