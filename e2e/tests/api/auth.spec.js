@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { PASSWORD, registerPlayer, uniqueUsername } from '../helpers/auth.js';
+import { PASSWORD, TERMS, registerPlayer, uniqueUsername } from '../helpers/auth.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
 
@@ -16,7 +16,7 @@ test.describe('Registration and login @critical', () => {
     const username = uniqueUsername('Anna');
 
     const response = await request.post(`${API_URL}/api/auth/register`, {
-      data: { username, password: PASSWORD },
+      data: { username, password: PASSWORD, ...TERMS },
     });
 
     expect(response.status()).toBe(201);
@@ -36,7 +36,7 @@ test.describe('Registration and login @critical', () => {
 
   test('should set the refresh cookie as HttpOnly, only for the auth routes', async ({ request }) => {
     const response = await request.post(`${API_URL}/api/auth/register`, {
-      data: { username: uniqueUsername(), password: PASSWORD },
+      data: { username: uniqueUsername(), password: PASSWORD, ...TERMS },
     });
 
     const cookie = response.headers()['set-cookie'];
@@ -48,10 +48,10 @@ test.describe('Registration and login @critical', () => {
 
   test('should refuse a username already taken, whatever the case (#35)', async ({ request }) => {
     const username = uniqueUsername('Anna');
-    await request.post(`${API_URL}/api/auth/register`, { data: { username, password: PASSWORD } });
+    await request.post(`${API_URL}/api/auth/register`, { data: { username, password: PASSWORD, ...TERMS } });
 
     const response = await request.post(`${API_URL}/api/auth/register`, {
-      data: { username: username.toUpperCase(), password: 'another-password' },
+      data: { username: username.toUpperCase(), password: 'another-password', ...TERMS },
     });
 
     expect(response.status()).toBe(409);
@@ -96,7 +96,7 @@ test.describe('Registration and login @critical', () => {
     ['a username with forbidden characters', { username: '<script>', password: PASSWORD }],
   ]) {
     test(`should reject a registration with ${name}`, async ({ request }) => {
-      const response = await request.post(`${API_URL}/api/auth/register`, { data });
+      const response = await request.post(`${API_URL}/api/auth/register`, { data: { ...TERMS, ...data } });
       expect(response.status()).toBe(400);
     });
   }
@@ -243,7 +243,7 @@ test.describe('Session renewal and logout @critical', () => {
 
   const signUp = async (request) => {
     const response = await request.post(`${API_URL}/api/auth/register`, {
-      data: { username: uniqueUsername('Session'), password: PASSWORD },
+      data: { username: uniqueUsername('Session'), password: PASSWORD, ...TERMS },
     });
     return { cookie: cookieFrom(response), player: (await response.json()).data.player };
   };

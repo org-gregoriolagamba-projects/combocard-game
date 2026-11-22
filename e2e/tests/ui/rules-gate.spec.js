@@ -7,7 +7,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { registerPlayer, PASSWORD, uniqueUsername } from '../helpers/auth.js';
+import { acceptTermsOnForm, registerPlayer, PASSWORD, uniqueUsername } from '../helpers/auth.js';
 
 const API_URL = process.env.E2E_API_URL || 'http://localhost:3001';
 
@@ -28,6 +28,7 @@ test.describe('Rules confirmation @rules', () => {
     await page.getByRole('button', { name: /crea un account/i }).click();
     await page.getByLabel(/nome utente/i).fill(uniqueUsername('Nuovo'));
     await page.getByLabel(/password/i).fill(PASSWORD);
+    await acceptTermsOnForm(page);
     await page.getByRole('button', { name: /registrati/i }).click();
 
     await expect(rulesHeading(page)).toBeVisible({ timeout: 10000 });
