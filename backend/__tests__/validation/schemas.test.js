@@ -7,6 +7,8 @@ import { validate } from '../../src/middleware/validation.middleware.js';
 import {
   registerSchema,
   acceptTermsSchema,
+  adminAnnouncementSchema,
+  adminMaintenanceSchema,
   loginSchema,
   buyCreditsSchema,
   createGameSchema,
@@ -62,6 +64,61 @@ describe('registerSchema', () => {
     [{ username: 'Anna', password: 12345678 }],
   ])('rejects %j', (body) => {
     expect(isValid(registerSchema, body)).toBe(false);
+  });
+});
+
+describe('adminAnnouncementSchema', () => {
+  const valid = { message: 'Alle 22 manutenzione', severity: 'info' };
+
+  test('accepts a message with a severity, with and without a window', () => {
+    expect(isValid(adminAnnouncementSchema, valid)).toBe(true);
+    expect(isValid(adminAnnouncementSchema, { ...valid, severity: 'importante', startsAt: '2026-12-01T10:00:00Z', endsAt: '2026-12-01T12:00:00Z' })).toBe(true);
+    expect(isValid(adminAnnouncementSchema, { ...valid, endsAt: '2026-12-01T12:00:00Z' })).toBe(true);
+    expect(isValid(adminAnnouncementSchema, { ...valid, startsAt: '2026-12-01T10:00:00Z' })).toBe(true);
+  });
+
+  test('trims the message: it is text', () => {
+    expect(adminAnnouncementSchema.validate({ ...valid, message: '  ciao  ' }).value.message).toBe('ciao');
+  });
+
+  test('keeps the markup as it is, it is never interpreted', () => {
+    expect(adminAnnouncementSchema.validate({ ...valid, message: '<b>x</b>' }).value.message).toBe('<b>x</b>');
+  });
+
+  test.each([
+    ['no message', { severity: 'info' }],
+    ['an empty message', { message: '   ', severity: 'info' }],
+    ['a message of 281 characters', { message: 'x'.repeat(281), severity: 'info' }],
+    ['no severity', { message: 'ciao' }],
+    ['a severity that does not exist', { message: 'ciao', severity: 'x' }],
+    ['an end before the start', { message: 'ciao', severity: 'info', startsAt: '2026-12-01T12:00:00Z', endsAt: '2026-12-01T10:00:00Z' }],
+    ['an end equal to the start', { message: 'ciao', severity: 'info', startsAt: '2026-12-01T12:00:00Z', endsAt: '2026-12-01T12:00:00Z' }],
+    ['a date that is not a date', { message: 'ciao', severity: 'info', startsAt: 'domani' }],
+  ])('rejects %s', (_label, body) => {
+    expect(isValid(adminAnnouncementSchema, body)).toBe(false);
+  });
+
+  test('accepts a message of exactly 280 characters', () => {
+    expect(isValid(adminAnnouncementSchema, { message: 'x'.repeat(280), severity: 'info' })).toBe(true);
+  });
+});
+
+describe('adminMaintenanceSchema', () => {
+  test('accepts off, and on with a message', () => {
+    expect(isValid(adminMaintenanceSchema, { active: false })).toBe(true);
+    expect(isValid(adminMaintenanceSchema, { active: true, message: 'Torno presto' })).toBe(true);
+    expect(isValid(adminMaintenanceSchema, { active: true, message: 'Torno presto', endsAt: '2026-12-01T22:00:00Z' })).toBe(true);
+  });
+
+  test.each([
+    ['on without a message', { active: true }],
+    ['on with an empty message', { active: true, message: '  ' }],
+    ['active as a string', { active: 'true', message: 'x' }],
+    ['no active', { message: 'x' }],
+    ['a message of 281 characters', { active: true, message: 'x'.repeat(281) }],
+    ['an end that is not a date', { active: true, message: 'x', endsAt: 'dopo cena' }],
+  ])('rejects %s', (_label, body) => {
+    expect(isValid(adminMaintenanceSchema, body)).toBe(false);
   });
 });
 

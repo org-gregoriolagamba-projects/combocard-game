@@ -9,6 +9,11 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendSuccess } from "../utils/response.utils.js";
 import * as adminService from "../services/admin.service.js";
 import { getSettingsView, updateSettings as changeSettings } from "../services/settings.service.js";
+import {
+  publishAnnouncement as publishNotice,
+  withdrawAnnouncement as withdrawNotice,
+  setMaintenance as changeMaintenance,
+} from "../services/notices.service.js";
 import { playerRoom } from "../sockets/index.js";
 
 const actorOf = (req) => ({ type: "player", id: req.auth.playerId });
@@ -186,4 +191,55 @@ export const updateSettings = asyncHandler(async (req, res) => {
   const { values, reason } = req.body;
   await changeSettings(req.store, req.gameState, { values, reason, actor: actorOf(req) });
   sendSuccess(res, await getSettingsView(req.store, req.gameState, { admin: true }), "Settings updated");
+});
+
+// The dates come out of the schema as Date objects: the services and the stores work with ISO text
+const isoOrNull = (date) => (date ? new Date(date).toISOString() : null);
+
+// The announcement and the maintenance mode as the server has them now, with who changed them last
+const noticesOf = (req) => ({ announcement: { ...req.gameState.announcement }, maintenance: { ...req.gameState.maintenance } });
+
+/**
+ * The announcement and the maintenance mode, complete
+ * GET /api/admin/notices
+ */
+export const getNotices = asyncHandler(async (req, res) => {
+  sendSuccess(res, { announcement: await req.store.getAnnouncement(), maintenance: await req.store.getMaintenance() });
+});
+
+/**
+ * Publish an announcement for all the players: it replaces the previous one
+ * PUT /api/admin/announcement
+ */
+export const publishAnnouncement = asyncHandler(async (req, res) => {
+  const { message, severity, startsAt, endsAt } = req.body;
+  await publishNotice(
+    req.store, req.gameState, req.io,
+    { message, severity, startsAt: isoOrNull(startsAt), endsAt: isoOrNull(endsAt) },
+    actorOf(req),
+  );
+  sendSuccess(res, noticesOf(req), "Announcement published");
+});
+
+/**
+ * Withdraw the announcement
+ * DELETE /api/admin/announcement
+ */
+export const withdrawAnnouncement = asyncHandler(async (req, res) => {
+  await withdrawNotice(req.store, req.gameState, req.io, actorOf(req));
+  sendSuccess(res, noticesOf(req), "Announcement withdrawn");
+});
+
+/**
+ * Turn the maintenance mode on (with the message) or off
+ * PUT /api/admin/maintenance
+ */
+export const setMaintenance = asyncHandler(async (req, res) => {
+  const { active, message, endsAt } = req.body;
+  const { changed } = await changeMaintenance(
+    req.store, req.gameState, req.io,
+    { active, message, endsAt: isoOrNull(endsAt) },
+    actorOf(req),
+  );
+  sendSuccess(res, { ...noticesOf(req), changed }, active ? "Maintenance on" : "Maintenance off");
 });

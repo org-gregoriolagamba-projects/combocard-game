@@ -26,6 +26,17 @@ describe('admin router', () => {
   });
 });
 
+describe('the routes of the notices', () => {
+  // A path can have one layer for each method
+  const methods = (path) => Object.assign({}, ...adminRouter.stack.filter((layer) => layer.route?.path === path).map((layer) => layer.route.methods));
+
+  test('notices is for GET only; announcement for PUT and DELETE; maintenance for PUT', () => {
+    expect(methods('/notices')).toEqual({ get: true });
+    expect(methods('/announcement')).toEqual({ put: true, delete: true });
+    expect(methods('/maintenance')).toEqual({ put: true });
+  });
+});
+
 describe('GET /api/admin/status', () => {
   test('answers that the caller is an admin, and nothing else', () => {
     let payload;
