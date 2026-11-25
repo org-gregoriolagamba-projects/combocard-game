@@ -383,6 +383,10 @@ No route makes an admin: it is done from the terminal of the server, after the f
 
 The same command is the way out if no admin is left, and `--demote` makes an admin a player again (the last admin cannot be demoted). Every change is written in the audit log as done by the system. The script needs a shell on the server, or a one-off command of the hosting platform, with the production `DATABASE_URL`: there is no other way to create an admin. If the server has not been restarted since the update, run `npm run db:migrate` first. Details in [AUTH.md](AUTH.md).
 
+### Maintenance and announcements
+
+An admin turns the maintenance on from the Amministrazione screen, tab "Avvisi" (or `PUT /api/admin/maintenance`), with the message the players read and, if wanted, the time it should end (only an information: the admin turns it off). While it is on, nobody new registers and nobody creates, joins or starts a game; the games already in progress finish, the registered players can still log in and an admin works as always. A visitor sees a maintenance screen. To warn the players beforehand, publish an announcement first (same tab, or `PUT /api/admin/announcement`): it shows as a banner to everybody who is connected and to who comes in. `GET /api/health` tells `maintenance: true/false`, and `GET /api/status` is public. A full game that was waiting starts by itself when the maintenance is turned off.
+
 ### Before Opening to the Public
 
 - **Legal texts:** the privacy notice and the terms of use show "[da indicare]" for what is not set yet. Before publishing set the contact e-mail (`email` in `frontend/src/config/contatti.js`, an address of the domain) and, in `frontend/src/config/legale.js`, the hosting (`hosting.nome`, `hosting.paese`), how long the server logs are kept (`conservazioneLog`) and the day the texts come into force (`vigenteDal`), then build the frontend again. `node .claude/skills/controllo-documentazione-release/scripts/check-docs.mjs --release` stops the release while one is missing. The texts do not replace a legal opinion: have them reviewed.

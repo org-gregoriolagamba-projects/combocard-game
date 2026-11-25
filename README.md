@@ -179,6 +179,12 @@ All the routes below require `Authorization: Bearer <access token>`. The acting 
 ### Admin Routes
 Under `/api/admin`, for accounts with the admin role only: users (list, edit, adjust credits, suspend, close sessions, reset password, delete), games (list, cancel), game settings (read, change), status, statistics and the audit log. See [docs/AUTH.md](docs/AUTH.md).
 
+### Status and Notices
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/status` | Public: the maintenance mode and the announcement that is visible now |
+| GET / PUT / DELETE | `/api/admin/notices`, `/api/admin/announcement`, `/api/admin/maintenance` | Admin: read both, publish or withdraw the announcement, turn the maintenance on or off (see [docs/AUTH.md](docs/AUTH.md)) |
+
 ### Health Routes
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -207,6 +213,8 @@ Under `/api/admin`, for accounts with the admin role only: users (list, edit, ad
 - `gameFinished`: Game ended
 - `gameCancelled`: Game cancelled by an admin
 - `sessionEnded`: The session of the player was closed
+- `avviso`: The announcement for all the players changed (the one visible now, or `null`)
+- `manutenzione`: The maintenance mode was turned on or off
 
 ## 🧪 Testing
 
