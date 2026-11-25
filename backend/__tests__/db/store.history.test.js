@@ -54,7 +54,7 @@ describeWithDb('history and statistics, from the database', () => {
   });
 
   beforeEach(async () => {
-    await pool.query('DROP TABLE IF EXISTS game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations');
+    await pool.query('DROP TABLE IF EXISTS announcement, maintenance, game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations');
     await runMigrations(pool);
     store = createPostgresStore(pool);
     await store.createPlayer(player('p1', 'Anna'));

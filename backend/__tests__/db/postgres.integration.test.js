@@ -67,7 +67,7 @@ describeWithDb('PostgreSQL store', () => {
 
   beforeEach(async () => {
     await pool.query(
-      'DROP TABLE IF EXISTS game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+      'DROP TABLE IF EXISTS announcement, maintenance, game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
     );
     await runMigrations(pool);
     store = createPostgresStore(pool, NO_RETRY);
@@ -447,7 +447,7 @@ describeWithDb('PostgreSQL store', () => {
           await copyFile(path.join(migrations, file), path.join(upTo004, file));
         }
         await pool.query(
-          'DROP TABLE IF EXISTS game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
+          'DROP TABLE IF EXISTS announcement, maintenance, game_settings, audit_log, refresh_tokens, user_accounts, credit_transactions, games, players, schema_migrations',
         );
         await runMigrations(pool, upTo004);
         await pool.query("INSERT INTO players (id, name, credits) VALUES ('debtor', 'Debitore', -50), ('ok', 'Anna', 100)");
@@ -704,6 +704,83 @@ describeWithDb('PostgreSQL store', () => {
       await expect(store.resetAccountPassword('p1', 'h', { actor: admin })).rejects.toThrow(TypeError);
       await expect(store.changeAccountPassword('p1', 'h')).rejects.toThrow(TypeError);
       await expect(store.getPasswordHash('p1')).resolves.toBe('hash-p1');
+    });
+  });
+
+  describe('notices', () => {
+    const actor = { type: 'player', id: 'p9' };
+    const announcementRow = async () => (await pool.query('SELECT * FROM announcement WHERE id = 1')).rows[0];
+
+    test('the migration creates the two tables with their single row, off', async () => {
+      expect(await announcementRow()).toMatchObject({ id: 1, version: 0, active: false, message: '', severity: 'info' });
+      const { rows } = await pool.query('SELECT * FROM maintenance WHERE id = 1');
+      expect(rows[0]).toMatchObject({ id: 1, active: false, message: '' });
+    });
+
+    test('a second row is refused', async () => {
+      // 23514 = check_violation
+      await expect(pool.query('INSERT INTO announcement (id) VALUES (2)')).rejects.toMatchObject({ code: '23514' });
+      await expect(pool.query('INSERT INTO maintenance (id) VALUES (2)')).rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('an end that is not after the start is refused by the table', async () => {
+      await expect(
+        pool.query("UPDATE announcement SET starts_at = '2026-12-01T12:00:00Z', ends_at = '2026-12-01T12:00:00Z' WHERE id = 1"),
+      ).rejects.toMatchObject({ code: '23514' });
+    });
+
+    test('publishing raises the version and writes the audit row with it', async () => {
+      const result = await store.publishAnnouncement(
+        { message: 'Alle 22 manutenzione', severity: 'importante', startsAt: null, endsAt: '2026-12-01T22:00:00.000Z' },
+        { actor },
+      );
+
+      expect(result).toMatchObject({ version: 1, active: true, severity: 'importante', endsAt: '2026-12-01T22:00:00.000Z', updatedBy: 'p9' });
+      const [event] = await store.listAuditEvents();
+      expect(event).toMatchObject({ action: 'announcement_published', actorId: 'p9', targetId: null });
+      expect(event.details).toMatchObject({ version: 1, message: 'Alle 22 manutenzione', severity: 'importante' });
+    });
+
+    test('with an actor that is not valid nothing changes', async () => {
+      await expect(store.publishAnnouncement({ message: 'x', severity: 'info' }, { actor: { type: 'player' } })).rejects.toThrow(TypeError);
+
+      expect(await announcementRow()).toMatchObject({ version: 0, active: false });
+      expect(await store.listAuditEvents()).toEqual([]);
+    });
+
+    test('withdrawing keeps the version, and again writes nothing', async () => {
+      await store.publishAnnouncement({ message: 'a', severity: 'info' }, { actor });
+
+      await store.withdrawAnnouncement({ actor });
+      await store.withdrawAnnouncement({ actor });
+
+      expect(await announcementRow()).toMatchObject({ version: 1, active: false });
+      const withdrawals = (await store.listAuditEvents()).filter((e) => e.action === 'announcement_withdrawn');
+      expect(withdrawals).toHaveLength(1);
+    });
+
+    test('two publications at the same time get the versions 1 and 2', async () => {
+      const results = await Promise.all([
+        store.publishAnnouncement({ message: 'a', severity: 'info' }, { actor }),
+        store.publishAnnouncement({ message: 'b', severity: 'info' }, { actor }),
+      ]);
+
+      expect(results.map((r) => r.version).sort()).toEqual([1, 2]);
+      expect((await announcementRow()).version).toBe(2);
+    });
+
+    test('maintenance: on, the same again (nothing written), off', async () => {
+      const on = { active: true, message: 'Torno alle 22', endsAt: '2026-12-01T22:00:00.000Z' };
+
+      const first = await store.setMaintenance(on, { actor });
+      const second = await store.setMaintenance(on, { actor });
+      const off = await store.setMaintenance({ active: false }, { actor });
+
+      expect(first).toMatchObject({ changed: true, maintenance: { active: true, message: 'Torno alle 22', endsAt: '2026-12-01T22:00:00.000Z' } });
+      expect(second.changed).toBe(false);
+      expect(off).toMatchObject({ changed: true, maintenance: { active: false } });
+      const actions = (await store.listAuditEvents()).map((e) => e.action);
+      expect(actions.filter((a) => a.startsWith('maintenance_'))).toEqual(['maintenance_disabled', 'maintenance_enabled']);
     });
   });
 
