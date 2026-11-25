@@ -75,11 +75,12 @@ export async function refreshAccessToken() {
 /**
  * Base fetch wrapper with error handling
  * @param {string} endpoint - API endpoint
- * @param {Object} options - Fetch options
+ * @param {Object} options - Fetch options, and `quiet`: a read in the background whose failure is not written in
+ *   the console (a page that is reloaded cancels it)
  * @param {boolean} isRetry - True when repeating a request after renewing the token
  * @returns {Promise} Response data
  */
-async function fetchApi(endpoint, options = {}, isRetry = false) {
+async function fetchApi(endpoint, { quiet = false, ...options } = {}, isRetry = false) {
   const url = `${API_BASE_URL}${endpoint}`;
 
   const config = {
@@ -104,7 +105,7 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
     if (response.status === 401 && !isRetry && !endpoint.startsWith("/auth/")) {
       const token = await refreshAccessToken();
       if (token) {
-        return fetchApi(endpoint, options, true);
+        return fetchApi(endpoint, { ...options, quiet }, true);
       }
     }
 
@@ -126,7 +127,9 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
 
     return data;
   } catch (error) {
-    console.error(`API Error [${endpoint}]:`, error);
+    if (!quiet) {
+      console.error(`API Error [${endpoint}]:`, error);
+    }
     throw error;
   }
 }
@@ -135,7 +138,7 @@ async function fetchApi(endpoint, options = {}, isRetry = false) {
  * API methods
  */
 const api = {
-  get: (endpoint) => fetchApi(endpoint, { method: "GET" }),
+  get: (endpoint, { quiet = false } = {}) => fetchApi(endpoint, { method: "GET", quiet }),
 
   post: (endpoint, body) => fetchApi(endpoint, {
     method: "POST",

@@ -138,7 +138,13 @@ test.describe('Homepage', () => {
 
     // Filter out known acceptable errors
     const criticalErrors = errors.filter(
-      (e) => !e.includes('favicon') && !e.includes('404') && !e.includes('WebSocket') && !e.includes('Socket connection')
+      (e) =>
+        !e.includes('favicon') &&
+        !e.includes('404') &&
+        !e.includes('WebSocket') &&
+        !e.includes('Socket connection') &&
+        // Firefox writes this when the reload cancels a font that was still downloading
+        !e.includes('downloadable font')
     );
 
     expect(criticalErrors).toHaveLength(0);

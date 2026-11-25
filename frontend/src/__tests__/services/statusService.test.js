@@ -10,6 +10,7 @@ describe('statusService', () => {
 
     await expect(statusService.getStatus()).resolves.toEqual(answer);
 
-    expect(api.get).toHaveBeenCalledWith('/status');
+    // A read in the background: a page that is reloaded cancels it, and that is not an error to write in the console
+    expect(api.get).toHaveBeenCalledWith('/status', { quiet: true });
   });
 });
