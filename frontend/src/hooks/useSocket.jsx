@@ -22,6 +22,7 @@ import {
 import { setScreen, addToast, setVittoriaRecente } from "../store/slices/uiSlice";
 import { updateCredits, clearPlayer } from "../store/slices/playerSlice";
 import { setAccessToken } from "../services/api";
+import { fetchStatus, setAnnouncement, setMaintenance } from "../store/slices/noticeSlice";
 import { suona, setPartitaConSuoni } from "../services/soundService";
 
 /**
@@ -72,13 +73,32 @@ export function useSocket() {
       if (currentGameId) {
         socketService.joinGame(currentGameId);
       }
+      // What was published while the socket was down is read again
+      dispatch(fetchStatus());
     };
     socket.on("connect", handleConnect);
 
+    // The announcement and the maintenance mode, told to everybody; a message without the field is not
+    // an order to clear them
+    const handleAvviso = (payload) => {
+      if (payload && "announcement" in payload) {
+        dispatch(setAnnouncement(payload.announcement));
+      }
+    };
+    const handleManutenzione = (payload) => {
+      if (payload && "maintenance" in payload) {
+        dispatch(setMaintenance(payload.maintenance));
+      }
+    };
+    socket.on("avviso", handleAvviso);
+    socket.on("manutenzione", handleManutenzione);
+
     return () => {
       socket.off("connect", handleConnect);
+      socket.off("avviso", handleAvviso);
+      socket.off("manutenzione", handleManutenzione);
     };
-  }, [playerId, mustChangePassword, currentGameId]);
+  }, [playerId, mustChangePassword, currentGameId, dispatch]);
 
   // Join game room when gameId changes
   useEffect(() => {

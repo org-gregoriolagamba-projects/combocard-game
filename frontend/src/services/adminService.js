@@ -177,3 +177,41 @@ export const updateSettings = async ({ values, reason }) => {
   const response = await api.patch("/admin/settings", { values, reason });
   return response.data;
 };
+
+/**
+ * The announcement and the maintenance mode, complete, with who changed them last
+ * @returns {Promise<Object>} { announcement, maintenance }
+ */
+export const getNotices = async () => {
+  const response = await api.get("/admin/notices");
+  return response.data;
+};
+
+/**
+ * Publish an announcement for all the players: it replaces the previous one
+ * @param {Object} notice - { message, severity: "info"|"importante", startsAt?, endsAt? }
+ * @returns {Promise<Object>} { announcement, maintenance }
+ */
+export const publishAnnouncement = async ({ message, severity, startsAt, endsAt }) => {
+  const response = await api.put("/admin/announcement", { message, severity, startsAt, endsAt });
+  return response.data;
+};
+
+/**
+ * Withdraw the announcement
+ * @returns {Promise<Object>} { announcement, maintenance }
+ */
+export const withdrawAnnouncement = async () => {
+  const response = await api.delete("/admin/announcement");
+  return response.data;
+};
+
+/**
+ * Turn the maintenance mode on (with the message the players read) or off
+ * @param {Object} change - { active, message?, endsAt? }
+ * @returns {Promise<Object>} { announcement, maintenance, changed }
+ */
+export const setMaintenance = async ({ active, message, endsAt }) => {
+  const response = await api.put("/admin/maintenance", { active, message, endsAt });
+  return response.data;
+};

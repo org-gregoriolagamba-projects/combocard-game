@@ -48,6 +48,7 @@ const EXACT = {
   "You do not have permission to do this": "Non hai i permessi per farlo",
   "You must accept the terms of use first": "Per continuare devi accettare i termini d'uso",
   "The terms of use have changed, reload the page": "I testi sono cambiati: ricarica la pagina",
+  "The game is in maintenance": "Il gioco è in manutenzione: riprova più tardi",
   "You are already in another game": "Sei già in un'altra partita: lasciala prima",
   "A player does not have enough credits to start": "Un giocatore non ha più abbastanza crediti: la partita non può iniziare",
   "You are not part of this game": "Non fai parte di questa partita",
