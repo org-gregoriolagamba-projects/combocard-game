@@ -52,12 +52,12 @@ describe('AdminScreen: the audit log', () => {
     return view;
   };
 
-  test('has five tabs, the users first and the settings last', async () => {
+  test('has six tabs, the users first and the notices last', async () => {
     renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
 
     const tabs = await screen.findAllByRole('tab');
 
-    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri', 'Avvisi']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
     expect(adminService.listAudit).not.toHaveBeenCalled();
   });
@@ -128,6 +128,40 @@ describe('AdminScreen: the audit log', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Utenti' }));
 
     expect(await screen.findByRole('list', { name: 'Utenti' })).toBeInTheDocument();
+  });
+
+  describe('the notices', () => {
+    const notice = (id, action, details, who = {}) => event(id, action, details, { targetId: null, targetName: null, ...who });
+
+    test('the publication and the withdrawal of an announcement, the maintenance on and off', async () => {
+      adminService.listAudit.mockResolvedValue(pageOf([
+        notice(31, 'announcement_published', { version: 2, message: 'Alle 22 manutenzione', severity: 'importante' }),
+        notice(32, 'announcement_withdrawn', { version: 2 }),
+        notice(33, 'maintenance_enabled', { message: 'Torno alle 22', endsAt: null }),
+        notice(34, 'maintenance_disabled', {}),
+      ]));
+
+      const { list } = await openRegistro();
+
+      const sentences = within(list).getAllByRole('listitem').map((li) => li.textContent);
+      expect(sentences[0]).toContain('Dario ha pubblicato un avviso: «Alle 22 manutenzione»');
+      expect(sentences[1]).toContain("Dario ha ritirato l'avviso");
+      expect(sentences[2]).toContain('Dario ha acceso la manutenzione: «Torno alle 22»');
+      expect(sentences[3]).toContain('Dario ha spento la manutenzione');
+    });
+
+    test('details that are missing still make a sentence, and the system can be the one who acts', async () => {
+      adminService.listAudit.mockResolvedValue(pageOf([
+        notice(35, 'announcement_published', undefined),
+        notice(36, 'maintenance_enabled', undefined, { actorType: 'system', actorId: null, actorName: null }),
+      ]));
+
+      const { list } = await openRegistro();
+
+      const sentences = within(list).getAllByRole('listitem').map((li) => li.textContent);
+      expect(sentences[0]).toContain('Dario ha pubblicato un avviso');
+      expect(sentences[1]).toContain('Il sistema ha acceso la manutenzione');
+    });
   });
 
   describe('the changes of the game settings', () => {

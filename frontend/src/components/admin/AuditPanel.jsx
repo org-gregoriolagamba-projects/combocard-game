@@ -48,6 +48,18 @@ export function frase(e) {
     const cambi = Object.entries(e.details.changes ?? {}).map(([chiave, { from, to }]) => fraseCambio(chiave, from, to));
     return `${chi} ha cambiato i parametri di gioco: ${cambi.length > 0 ? `${cambi.join("; ")}: ` : ""}«${e.details.reason}»`;
   }
+  if (e.action === "announcement_published") {
+    return `${chi} ha pubblicato un avviso${e.details?.message ? `: «${e.details.message}»` : ""}`;
+  }
+  if (e.action === "announcement_withdrawn") {
+    return `${chi} ha ritirato l'avviso`;
+  }
+  if (e.action === "maintenance_enabled") {
+    return `${chi} ha acceso la manutenzione${e.details?.message ? `: «${e.details.message}»` : ""}`;
+  }
+  if (e.action === "maintenance_disabled") {
+    return `${chi} ha spento la manutenzione`;
+  }
   if (e.action === "user_suspended") {
     return `${chi} ha sospeso ${bersaglio}: «${e.details.reason}»`;
   }

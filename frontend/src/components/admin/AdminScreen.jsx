@@ -15,6 +15,7 @@ import AuditPanel from "./AuditPanel";
 import GamesPanel from "./GamesPanel";
 import StatsPanel from "./StatsPanel";
 import ParametriPanel from "./ParametriPanel";
+import AvvisiPanel from "./AvvisiPanel";
 
 const TABS = [
   { id: "utenti", label: "Utenti" },
@@ -22,6 +23,7 @@ const TABS = [
   { id: "statistiche", label: "Statistiche" },
   { id: "registro", label: "Registro" },
   { id: "parametri", label: "Parametri" },
+  { id: "avvisi", label: "Avvisi" },
 ];
 
 function AdminScreen() {
@@ -84,6 +86,7 @@ function AdminScreen() {
           {tab === "statistiche" && <StatsPanel onForbidden={handleForbidden} />}
           {tab === "registro" && <AuditPanel onForbidden={handleForbidden} />}
           {tab === "parametri" && <ParametriPanel onForbidden={handleForbidden} />}
+          {tab === "avvisi" && <AvvisiPanel onForbidden={handleForbidden} />}
         </section>
       </div>
     </div>
