@@ -110,6 +110,33 @@ test.describe('Notices on screen @notices', () => {
     await expect(hall(page)).toBeVisible({ timeout: 10000 });
   });
 
+  test('a player who created a game in this session is not sent to the maintenance screen: the game goes on, with a banner', async ({ page, request }) => {
+    const player = await registerPlayer(request, API_URL, 'InPartita');
+    await request.post(`${API_URL}/api/players/${player.id}/buy-credits`, { headers: player.headers, data: { amount: 500 } });
+    await signIn(page, player);
+    await expect(hall(page)).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: /Crea Nuova Partita/ }).click();
+    await page.getByRole('button', { name: 'Crea Partita' }).click();
+    await expect(page.getByRole('button', { name: 'Lascia la partita' }).first()).toBeVisible({ timeout: 10000 });
+
+    await maintenance(request, admin, { active: true, message: 'Un attimo' });
+
+    await expect(page.getByRole('status').filter({ hasText: 'Manutenzione accesa: Un attimo' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: 'Manutenzione' })).toHaveCount(0);
+  });
+
+  test('a visitor on the maintenance screen is let in when it ends, without reloading', async ({ page, request }) => {
+    await maintenance(request, admin, { active: true, message: 'Torno presto' });
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Manutenzione' })).toBeVisible();
+
+    await maintenance(request, admin, { active: false });
+    // The page asks again when it comes back in view (and every half a minute): the same as a visitor who returns to the tab
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+    await expect(page.getByLabel(/nome utente/i)).toBeVisible({ timeout: 10000 });
+  });
+
   test('the admin publishes and withdraws from the Avvisi tab', async ({ page }) => {
     await signIn(page, admin);
     await page.getByRole('button', { name: 'Amministrazione' }).click();

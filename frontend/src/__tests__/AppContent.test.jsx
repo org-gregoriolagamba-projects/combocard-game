@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppContent from '../AppContent';
 import { renderWithProviders } from './test-utils';
@@ -197,9 +197,12 @@ describe('AppContent: the maintenance', () => {
     statusService.getStatus.mockResolvedValue({ announcement: null, maintenance });
   });
 
-  const withMaintenance = ({ role = 'player', currentGameId = null, id = 'p1' } = {}) => {
+  // The game the player is in is in the game slice (it is where joining and creating put it); the
+  // currentGameId of the player slice is only what the server said at the login
+  const withMaintenance = ({ role = 'player', currentGameId = null, id = 'p1', playerGameId = null } = {}) => {
     const state = preloaded('2026-11-03T10:00:00.000Z');
-    state.player = { ...state.player, id, role, currentGameId };
+    state.player = { ...state.player, id, role, currentGameId: playerGameId };
+    state.game = { ...state.game, currentGameId };
     state.notices = { announcement: null, maintenance, status: 'ready' };
     return state;
   };
@@ -239,6 +242,27 @@ describe('AppContent: the maintenance', () => {
     expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
   });
 
+  test('a player who joined a game in this session goes on (the game slice, not the login, says it)', async () => {
+    // The server says: no maintenance, for now (the beforeEach of this block says the opposite)
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: null });
+    const state = withMaintenance();
+    state.notices.maintenance = null;
+    const { store } = renderWithProviders(<AppContent />, { preloadedState: state });
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+
+    store.dispatch({ type: 'game/join/fulfilled', payload: { gameId: 'g1', player: { id: 'p1' } } });
+    store.dispatch({ type: 'notices/setMaintenance', payload: maintenance });
+
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent('Manutenzione accesa: Torno alle 22');
+  });
+
+  test('a game id left at the login does not count once the player is out of the game', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ playerGameId: 'vecchia', currentGameId: null }) });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+  });
+
   test('an admin works as always, with the banner', async () => {
     renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ role: 'admin' }) });
 
@@ -262,5 +286,62 @@ describe('AppContent: the maintenance', () => {
     renderWithProviders(<AppContent />, { preloadedState: state });
 
     expect(await screen.findByRole('status')).toHaveTextContent('Benvenuti');
+  });
+});
+
+describe('AppContent: a visitor on the maintenance screen learns when it ends', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: { active: true, message: 'Torno alle 22', endsAt: null } });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const visitor = () => {
+    const state = preloaded('2026-11-03T10:00:00.000Z', 'home');
+    state.player = { ...state.player, id: null };
+    state.notices = { announcement: null, maintenance: { active: true, message: 'Torno alle 22', endsAt: null }, status: 'ready' };
+    return state;
+  };
+
+  test('without a session the status is read again every half a minute', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(statusService.getStatus).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(statusService.getStatus).toHaveBeenCalledTimes(3);
+  });
+
+  test('and when the maintenance is over the screen goes away', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: null });
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('the status is read when the page becomes visible again', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+
+    expect(statusService.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  test('with a session there is no polling: the socket tells', async () => {
+    const state = preloaded('2026-11-03T10:00:00.000Z');
+    state.notices = { announcement: null, maintenance: null, status: 'ready' };
+    renderWithProviders(<AppContent />, { preloadedState: state });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(90000); });
+
+    expect(statusService.getStatus).toHaveBeenCalledTimes(1);
   });
 });

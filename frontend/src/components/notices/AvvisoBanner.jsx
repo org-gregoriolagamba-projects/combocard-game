@@ -21,7 +21,9 @@ function AvvisoBanner() {
   const maintenance = useSelector((state) => state.notices.maintenance);
   const playerId = useSelector((state) => state.player.id);
   const role = useSelector((state) => state.player.role);
-  const currentGameId = useSelector((state) => state.player.currentGameId);
+  // Where the player is playing: joining and creating a game put it in the game slice (the player slice
+  // only has what the server said at the login, which nothing updates)
+  const currentGameId = useSelector((state) => state.game.currentGameId);
   const [chiusa, setChiusa] = useState(versioneChiusa);
 
   const showAnnouncement = announcement && announcement.version > chiusa;
@@ -38,7 +40,8 @@ function AvvisoBanner() {
   };
 
   return (
-    <div className="sticky top-0 z-40">
+    // Not sticky: the header of the game sticks to the top and must not go under the banner
+    <div>
       {showMaintenance && (
         <p role="status" className={`${BASE} ${STILI.importante} [overflow-wrap:anywhere]`}>
           Manutenzione accesa: {maintenance.message}

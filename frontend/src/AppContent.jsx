@@ -24,6 +24,9 @@ import { InformativaScreen, TerminiScreen, TerminiGate } from "./components/lega
 import { AvvisoBanner, ManutenzioneScreen } from "./components/notices";
 import { fetchStatus } from "./store/slices/noticeSlice";
 
+// How often a visitor without a session asks again whether the maintenance is over
+const STATUS_REFRESH_MS = 30000;
+
 function AppContent() {
   const dispatch = useDispatch();
   const currentScreen = useSelector((state) => state.ui.currentScreen);
@@ -33,7 +36,9 @@ function AppContent() {
   const terminiDaAccettare = useSelector((state) => state.player.terminiDaAccettare);
   const role = useSelector((state) => state.player.role);
   const mustChangePassword = useSelector((state) => state.player.mustChangePassword);
-  const currentGameId = useSelector((state) => state.player.currentGameId);
+  // Where the player is playing: joining and creating a game put it in the game slice (the player slice
+  // only has what the server said at the login, which nothing updates)
+  const currentGameId = useSelector((state) => state.game.currentGameId);
   const maintenance = useSelector((state) => state.notices.maintenance);
   // During the maintenance a visitor sees its screen; the admin opens the login from there
   const [mostraAccesso, setMostraAccesso] = useState(false);
@@ -45,6 +50,26 @@ function AppContent() {
   useEffect(() => {
     dispatch(fetchStatus());
   }, [dispatch]);
+
+  // Somebody without an account has no socket: the status is read again every half a minute and when the
+  // page comes back in view, so that a visitor on the maintenance screen learns that it is over
+  useEffect(() => {
+    if (playerId) {
+      return undefined;
+    }
+    const refresh = () => dispatch(fetchStatus());
+    const timer = setInterval(refresh, STATUS_REFRESH_MS);
+    const whenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", whenVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", whenVisible);
+    };
+  }, [playerId, dispatch]);
 
   useEffect(() => {
     setSessionExpiredHandler(() => {

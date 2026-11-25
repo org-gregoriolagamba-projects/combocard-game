@@ -11,13 +11,16 @@ import * as statusService from "../../services/statusService";
 
 export const fetchStatus = createAsyncThunk(
   "notices/fetchStatus",
-  async (_, { rejectWithValue }) => {
+  async (_, { getState, rejectWithValue }) => {
+    // How many events had arrived when this read began: if more arrive before the answer, the answer is
+    // older than what the events said and must not overwrite it
+    const startSeq = getState().notices.seq;
     try {
       const answer = await statusService.getStatus();
       if (!answer || typeof answer !== "object") {
         return rejectWithValue("Stato non valido");
       }
-      return answer;
+      return { ...answer, startSeq };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -31,6 +34,8 @@ const initialState = {
   maintenance: null,
   // idle | loading | ready | error
   status: "idle",
+  // How many events (avviso, manutenzione) have been received: an event is newer than a read in flight
+  seq: 0,
 };
 
 const noticeSlice = createSlice({
@@ -39,9 +44,11 @@ const noticeSlice = createSlice({
   reducers: {
     setAnnouncement: (state, action) => {
       state.announcement = action.payload ?? null;
+      state.seq += 1;
     },
     setMaintenance: (state, action) => {
       state.maintenance = action.payload ?? null;
+      state.seq += 1;
     },
   },
   extraReducers: (builder) => {
@@ -50,8 +57,12 @@ const noticeSlice = createSlice({
         state.status = "loading";
       })
       .addCase(fetchStatus.fulfilled, (state, action) => {
-        state.announcement = action.payload.announcement ?? null;
-        state.maintenance = action.payload.maintenance ?? null;
+        // An event arrived while the read was on its way: the read is older, the events win (the next
+        // read, at the next connection or poll, catches up with the rest)
+        if (action.payload.startSeq === state.seq) {
+          state.announcement = action.payload.announcement ?? null;
+          state.maintenance = action.payload.maintenance ?? null;
+        }
         state.status = "ready";
       })
       .addCase(fetchStatus.rejected, (state) => {
