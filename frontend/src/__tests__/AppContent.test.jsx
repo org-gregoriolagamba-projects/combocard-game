@@ -6,11 +6,13 @@ import { renderWithProviders } from './test-utils';
 import * as authService from '../services/authService';
 import * as gameService from '../services/gameService';
 import * as adminService from '../services/adminService';
+import * as statusService from '../services/statusService';
 import { clearDraft } from '../utils/formDraft';
 
 vi.mock('../services/authService');
 vi.mock('../services/gameService');
 vi.mock('../services/adminService');
+vi.mock('../services/statusService');
 
 const preloaded = (regoleAccettateIl, screen = 'hall') => ({
   player: { id: 'p1', name: 'Anna', credits: 100, currentGameId: null, regoleAccettateIl, isLoading: false, error: null, sessionChecked: true },
@@ -182,5 +184,83 @@ describe('AppContent: reading a text from the registration form', () => {
     expect(screen.getByLabelText(/nome utente/i)).toHaveValue('Anna');
     expect(screen.getByLabelText(/password/i)).toHaveValue('long enough');
     expect(screen.getByLabelText("Ho letto l'informativa sulla privacy e accetto i termini d'uso")).toBeChecked();
+  });
+});
+
+describe('AppContent: the maintenance', () => {
+  const maintenance = { active: true, message: 'Torno alle 22', endsAt: null };
+
+  beforeEach(() => {
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+    adminService.getStats?.mockResolvedValue?.({});
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance });
+  });
+
+  const withMaintenance = ({ role = 'player', currentGameId = null, id = 'p1' } = {}) => {
+    const state = preloaded('2026-11-03T10:00:00.000Z');
+    state.player = { ...state.player, id, role, currentGameId };
+    state.notices = { announcement: null, maintenance, status: 'ready' };
+    return state;
+  };
+
+  test('asks for the status when it opens, with or without an account', async () => {
+    const state = withMaintenance({ id: null });
+    state.notices.maintenance = null;
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalled());
+  });
+
+  test('somebody without an account sees the maintenance screen, and "Sono un amministratore" opens the login', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ id: null }) });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/nome utente/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /sono un amministratore/i }));
+
+    expect(await screen.findByLabelText(/nome utente/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('a player who is not in a game sees the maintenance screen, not the hall', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance() });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Hall' })).not.toBeInTheDocument();
+  });
+
+  test('a player who is in a game goes on, with the banner of the maintenance', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ currentGameId: 'g1' }) });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Manutenzione accesa: Torno alle 22');
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('an admin works as always, with the banner', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ role: 'admin' }) });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Manutenzione accesa');
+  });
+
+  test('when the maintenance ends the screen goes away by itself', async () => {
+    const { store } = renderWithProviders(<AppContent />, { preloadedState: withMaintenance() });
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+
+    store.dispatch({ type: 'notices/setMaintenance', payload: null });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+  });
+
+  test('an announcement shows over any screen', async () => {
+    const state = withMaintenance({ id: null });
+    state.notices = { announcement: { version: 1, message: 'Benvenuti', severity: 'info', startsAt: null, endsAt: null }, maintenance: null, status: 'ready' };
+    state.ui.currentScreen = 'home';
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Benvenuti');
   });
 });

@@ -4,7 +4,7 @@
  * Restores the session at page load and handles screen navigation based on Redux state.
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSocket } from "./hooks";
 import { setSessionExpiredHandler } from "./services/api";
@@ -21,6 +21,8 @@ import { HallScreen, LobbyScreen, GameScreen, RegoleScreen, ChangePasswordScreen
 import { AdminScreen } from "./components/admin";
 import { LoadingSpinner } from "./components/common";
 import { InformativaScreen, TerminiScreen, TerminiGate } from "./components/legal";
+import { AvvisoBanner, ManutenzioneScreen } from "./components/notices";
+import { fetchStatus } from "./store/slices/noticeSlice";
 
 function AppContent() {
   const dispatch = useDispatch();
@@ -31,9 +33,18 @@ function AppContent() {
   const terminiDaAccettare = useSelector((state) => state.player.terminiDaAccettare);
   const role = useSelector((state) => state.player.role);
   const mustChangePassword = useSelector((state) => state.player.mustChangePassword);
+  const currentGameId = useSelector((state) => state.player.currentGameId);
+  const maintenance = useSelector((state) => state.notices.maintenance);
+  // During the maintenance a visitor sees its screen; the admin opens the login from there
+  const [mostraAccesso, setMostraAccesso] = useState(false);
 
   // Initialize socket connection
   useSocket();
+
+  // The maintenance and the announcement are public: they are read before anybody has logged in
+  useEffect(() => {
+    dispatch(fetchStatus());
+  }, [dispatch]);
 
   useEffect(() => {
     setSessionExpiredHandler(() => {
@@ -63,29 +74,44 @@ function AppContent() {
     );
   }
 
-  // The privacy notice and the terms of use are public: they open with or without an account, and
-  // from the screen that asks to accept them
-  if (currentScreen === "informativa") {
-    return <InformativaScreen />;
-  }
-  if (currentScreen === "termini") {
-    return <TerminiScreen />;
-  }
+  const renderMain = () => {
+    // The privacy notice and the terms of use are public: they open with or without an account, and
+    // from the screen that asks to accept them
+    if (currentScreen === "informativa") {
+      return <InformativaScreen />;
+    }
+    if (currentScreen === "termini") {
+      return <TerminiScreen />;
+    }
 
-  // A temporary password comes before everything, the rules included
-  if (playerId && mustChangePassword) {
-    return <ChangePasswordScreen />;
-  }
+    // The game is in maintenance: somebody who is not an admin sees its screen, unless they are in a
+    // game (it goes on). A visitor can open the login from there: the admin comes in.
+    if (maintenance?.active && role !== "admin") {
+      if (!playerId) {
+        return mostraAccesso ? <HomePage /> : <ManutenzioneScreen onAdminLogin={() => setMostraAccesso(true)} />;
+      }
+      if (!currentGameId) {
+        return <ManutenzioneScreen />;
+      }
+    }
 
-  // A player who has not accepted the current terms of use accepts them before the rules
-  if (playerId && terminiDaAccettare === true) {
-    return <TerminiGate />;
-  }
+    // A temporary password comes before everything, the rules included
+    if (playerId && mustChangePassword) {
+      return <ChangePasswordScreen />;
+    }
 
-  // A player who never confirmed the rules reads them before anything else
-  if (playerId && regoleAccettateIl === null) {
-    return <RegoleScreen />;
-  }
+    // A player who has not accepted the current terms of use accepts them before the rules
+    if (playerId && terminiDaAccettare === true) {
+      return <TerminiGate />;
+    }
+
+    // A player who never confirmed the rules reads them before anything else
+    if (playerId && regoleAccettateIl === null) {
+      return <RegoleScreen />;
+    }
+
+    return renderScreen();
+  };
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -108,7 +134,12 @@ function AppContent() {
     }
   };
 
-  return renderScreen();
+  return (
+    <>
+      <AvvisoBanner />
+      {renderMain()}
+    </>
+  );
 }
 
 export default AppContent;
