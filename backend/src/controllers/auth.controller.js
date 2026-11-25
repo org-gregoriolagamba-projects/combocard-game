@@ -9,6 +9,7 @@ import { sendSuccess, sendCreated } from "../utils/response.utils.js";
 import { AppError } from "../utils/AppError.js";
 import config from "../config/index.js";
 import * as playerService from "../services/player.service.js";
+import { assertNotInMaintenance } from "../services/notices.service.js";
 import {
   normalizeUsername,
   hashPassword,
@@ -64,6 +65,9 @@ async function startSession(req, res, player, { role, sessionVersion, mustChange
  * POST /api/auth/register
  */
 export const register = asyncHandler(async (req, res) => {
+  // Nobody new while the game is in maintenance (there is no session: not even an admin registers)
+  assertNotInMaintenance(req.gameState);
+
   const { username, password, termsVersion } = req.body;
   const passwordHash = await hashPassword(password);
   // A registration carries the acceptance of the terms: the schema has already checked the version

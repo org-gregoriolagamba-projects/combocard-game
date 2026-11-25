@@ -15,6 +15,7 @@ import {
   setMaintenance as changeMaintenance,
 } from "../services/notices.service.js";
 import { playerRoom } from "../sockets/index.js";
+import { resumeWaitingGames } from "./game.controller.js";
 
 const actorOf = (req) => ({ type: "player", id: req.auth.playerId });
 
@@ -241,5 +242,9 @@ export const setMaintenance = asyncHandler(async (req, res) => {
     { active, message, endsAt: isoOrNull(endsAt) },
     actorOf(req),
   );
+  // The games that were full and waiting for the end of the maintenance start now
+  if (changed && !active) {
+    resumeWaitingGames(req.gameState, req.io, req.store);
+  }
   sendSuccess(res, { ...noticesOf(req), changed }, active ? "Maintenance on" : "Maintenance off");
 });
