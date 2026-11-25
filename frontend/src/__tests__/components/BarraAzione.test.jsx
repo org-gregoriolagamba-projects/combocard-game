@@ -258,8 +258,9 @@ describe('BarraAzione', () => {
   });
 
   describe('drawing by turns', () => {
-    const adesso = Date.now();
-    const turno = (secondi, extra = {}) => ({ scadenza: adesso + secondi * 1000, sospeso: false, restanteMs: secondi * 1000, ...extra });
+    // The time is read when the test builds its turn, not when the file is loaded: on a slow run the
+    // two are seconds apart and the countdown on the screen would show less than the test expects
+    const turno = (secondi, extra = {}) => ({ scadenza: Date.now() + secondi * 1000, sospeso: false, restanteMs: secondi * 1000, ...extra });
 
     test('everybody sees who is drawing and the time left', () => {
       render(<BarraAzione {...base} puoEstrarre={false} chiEstrae="Marta" turno={turno(54)} />);
