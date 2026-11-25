@@ -31,6 +31,7 @@ import { riarmaTurni } from "./services/estrazione.service.js";
 // Import persistence
 import { initializePersistence } from "./db/index.js";
 import { loadSettings } from "./services/settings.service.js";
+import { loadNotices, armNoticeTimers } from "./services/notices.service.js";
 import { createMemoryStore } from "./db/store.js";
 
 // Import CORS utility
@@ -167,6 +168,7 @@ const startServer = async () => {
   try {
     store = await initializePersistence(gameState);
     await loadSettings(store, gameState);
+    await loadNotices(store, gameState);
   } catch (err) {
     console.error(`❌ Could not initialize the database: ${err.message}`);
     process.exit(1);
@@ -174,6 +176,9 @@ const startServer = async () => {
 
   // The games drawn by turns that were in progress get their timers back
   riarmaTurni(gameState, io, () => store);
+
+  // The announcement that was saved with a start or an end in the future gets its timer back
+  armNoticeTimers(gameState, io);
 
   server.listen(config.port, () => {
     console.log(`🎴 COMBOCARD Server running in ${config.nodeEnv} mode on port ${config.port}`);
