@@ -47,12 +47,12 @@ describe('AdminScreen: the game settings', () => {
     return view;
   };
 
-  test('is the fifth tab, after the log, and it is not read until it is opened', async () => {
+  test('is the fifth tab, after the log (the Avvisi tab comes after it), and it is not read until it is opened', async () => {
     renderWithProviders(<AdminScreen />, { preloadedState: adminState() });
 
     const tabs = await screen.findAllByRole('tab');
 
-    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Utenti', 'Partite', 'Statistiche', 'Registro', 'Parametri', 'Avvisi']);
     expect(adminService.getSettings).not.toHaveBeenCalled();
   });
 

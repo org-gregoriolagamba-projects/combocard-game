@@ -9,6 +9,7 @@ import Joi from "joi";
 import { ACCOUNT_ROLES, COLLECTION_TYPES, GAME_DEFAULTS } from "../config/constants.js";
 import { GAME_SETTING_KEYS, GAME_SETTING_LIMITS } from "../config/gameSettings.js";
 import { TERMS_VERSION } from "../config/legale.js";
+import { NOTICE_MESSAGE_MAX, NOTICE_SEVERITIES } from "../config/notices.js";
 
 const integer = Joi.number().integer().strict();
 const collectionType = Joi.string().valid(...Object.values(COLLECTION_TYPES));
@@ -132,6 +133,22 @@ export const adminUpdateSettingsSchema = Joi.object({
     Object.fromEntries(GAME_SETTING_KEYS.map((key) => [key, integer.min(GAME_SETTING_LIMITS[key].min).max(GAME_SETTING_LIMITS[key].max)])),
   ).min(1).required().prefs({ stripUnknown: false }),
   reason: Joi.string().trim().min(1).max(200).required(),
+});
+
+// An announcement to all the players: text only (the server never transforms it, the screen shows it as
+// text), with a severity and a window that is optional; an end must come after the start
+export const adminAnnouncementSchema = Joi.object({
+  message: Joi.string().trim().min(1).max(NOTICE_MESSAGE_MAX).required(),
+  severity: Joi.string().valid(...NOTICE_SEVERITIES).required(),
+  startsAt: Joi.date().iso(),
+  endsAt: Joi.date().iso().when("startsAt", { is: Joi.exist(), then: Joi.date().greater(Joi.ref("startsAt")) }),
+});
+
+// The maintenance mode: turning it on needs the message the players will read
+export const adminMaintenanceSchema = Joi.object({
+  active: Joi.boolean().strict().required(),
+  message: Joi.string().trim().min(1).max(NOTICE_MESSAGE_MAX).when("active", { is: true, then: Joi.required() }),
+  endsAt: Joi.date().iso(),
 });
 
 export const adminListGamesQuerySchema = Joi.object({

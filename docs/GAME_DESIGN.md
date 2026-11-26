@@ -206,6 +206,13 @@ frontend/src/
 └── App.jsx             # Main app with Redux Provider
 ```
 
+## 📣 Announcements and maintenance
+
+An admin can talk to all the players and stop what is new, from the "Avvisi" tab of the Amministrazione screen (see [AUTH.md](AUTH.md)).
+
+- **Announcement.** One at a time, text only, up to 280 characters, with a severity (`info` or `importante`) and an optional start and end. It shows as a banner at the top of every screen to who is connected (at once) and to who comes in; the player can close it and does not see it again until the admin publishes another one.
+- **Maintenance.** While it is on, nobody new registers, nobody creates or joins a game, and a game that is waiting does not start (not even by itself when it fills): the games in progress finish, the registered players still log in and an admin works as always. A player who is not in a game sees a maintenance screen with the message of the admin and, if there is one, the time it should end; a player in a game sees a banner. When the admin turns it off, the games that were full and waiting start.
+
 ## 🔧 Future Enhancements
 
 Already done: persistence on PostgreSQL, accounts with sessions, player history and statistics.

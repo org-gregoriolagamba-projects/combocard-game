@@ -11,6 +11,7 @@ import playerReducer from '../store/slices/playerSlice';
 import gameReducer from '../store/slices/gameSlice';
 import uiReducer from '../store/slices/uiSlice';
 import settingsReducer from '../store/slices/settingsSlice';
+import noticeReducer from '../store/slices/noticeSlice';
 
 /**
  * Create a test store with optional preloaded state
@@ -22,6 +23,7 @@ export function createTestStore(preloadedState = {}) {
       game: gameReducer,
       ui: uiReducer,
       settings: settingsReducer,
+      notices: noticeReducer,
     },
     preloadedState,
   });

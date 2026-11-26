@@ -11,6 +11,8 @@ import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { validate } from "../middleware/validation.middleware.js";
 import { settingsLimiter } from "../middleware/rateLimiter.middleware.js";
 import {
+  adminAnnouncementSchema,
+  adminMaintenanceSchema,
   adminAdjustCreditsSchema,
   adminAuditQuerySchema,
   adminCancelGameSchema,
@@ -136,5 +138,33 @@ router.get("/settings", adminController.getSettings);
  * @access  Admin
  */
 router.patch("/settings", settingsLimiter, validate(adminUpdateSettingsSchema), adminController.updateSettings);
+
+/**
+ * @route   GET /api/admin/notices
+ * @desc    The announcement and the maintenance mode, complete, with who changed them last
+ * @access  Admin
+ */
+router.get("/notices", adminController.getNotices);
+
+/**
+ * @route   PUT /api/admin/announcement
+ * @desc    Publish an announcement for all the players (it replaces the previous one)
+ * @access  Admin
+ */
+router.put("/announcement", settingsLimiter, validate(adminAnnouncementSchema), adminController.publishAnnouncement);
+
+/**
+ * @route   DELETE /api/admin/announcement
+ * @desc    Withdraw the announcement
+ * @access  Admin
+ */
+router.delete("/announcement", settingsLimiter, adminController.withdrawAnnouncement);
+
+/**
+ * @route   PUT /api/admin/maintenance
+ * @desc    Turn the maintenance mode on (with the message the players read) or off
+ * @access  Admin
+ */
+router.put("/maintenance", settingsLimiter, validate(adminMaintenanceSchema), adminController.setMaintenance);
 
 export default router;

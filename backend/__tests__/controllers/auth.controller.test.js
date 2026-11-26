@@ -135,6 +135,31 @@ describe('auth controller', () => {
     });
   });
 
+  describe('during the maintenance', () => {
+    const maintenanceOn = () => {
+      ctx.gameState.maintenance = { active: true, message: 'Torno alle 22', endsAt: null };
+    };
+
+    test('nobody registers: 503, the code MAINTENANCE and no account', async () => {
+      maintenanceOn();
+
+      await expect(ctx.call(register, { body: CREDENTIALS })).rejects.toMatchObject({ statusCode: 503, code: 'MAINTENANCE' });
+
+      expect(ctx.gameState.players).toEqual({});
+    });
+
+    test('who is registered still logs in', async () => {
+      await ctx.call(register, { body: CREDENTIALS });
+      ctx.cookie = null;
+      maintenanceOn();
+
+      const res = await ctx.call(login, { body: CREDENTIALS });
+
+      expect(res.status).toBe(200);
+      expect(res.data.player.name).toBe('Anna');
+    });
+  });
+
   describe('login', () => {
     beforeEach(async () => {
       await ctx.call(register, { body: CREDENTIALS });

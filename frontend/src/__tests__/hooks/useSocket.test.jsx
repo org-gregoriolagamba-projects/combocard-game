@@ -3,10 +3,12 @@ import { act } from '@testing-library/react';
 import { useSocket } from '../../hooks/useSocket';
 import socketService from '../../services/socketService';
 import { suona, setPartitaConSuoni } from '../../services/soundService';
+import * as statusService from '../../services/statusService';
 import { renderWithProviders, mockGameState } from '../test-utils';
 
 vi.mock('../../services/gameService');
 vi.mock('../../services/soundService');
+vi.mock('../../services/statusService');
 
 function Probe() {
   useSocket();
@@ -297,5 +299,52 @@ describe('the events of the draws by turns', () => {
     const messaggi = store.getState().ui.toasts.map((t) => t.message);
     expect(messaggi).toContain('Non hai estratto in tempo: cartellino giallo. Al prossimo ritardo sarà rosso');
     expect(messaggi).toContain('Non hai estratto in tempo: cartellino rosso. Non estrai più in questa partita');
+  });
+});
+
+describe('the events of the notices', () => {
+  const announcement = { version: 2, message: 'Alle 22 manutenzione', severity: 'importante', startsAt: null, endsAt: null };
+
+  beforeEach(() => {
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: null });
+  });
+
+  test('avviso puts the announcement in the state, and an avviso with null takes it away', () => {
+    const { store, emit } = arrange();
+
+    emit('avviso', { announcement });
+    expect(store.getState().notices.announcement).toEqual(announcement);
+
+    emit('avviso', { announcement: null });
+    expect(store.getState().notices.announcement).toBeNull();
+  });
+
+  test('manutenzione puts the maintenance in the state, and null takes it away', () => {
+    const { store, emit } = arrange();
+
+    emit('manutenzione', { maintenance: { active: true, message: 'Torno alle 22', endsAt: null } });
+    expect(store.getState().notices.maintenance).toMatchObject({ active: true, message: 'Torno alle 22' });
+
+    emit('manutenzione', { maintenance: null });
+    expect(store.getState().notices.maintenance).toBeNull();
+  });
+
+  test('a message without the field is ignored: nothing is cleared by mistake', () => {
+    const { store, emit } = arrange();
+    emit('avviso', { announcement });
+
+    emit('avviso', undefined);
+    emit('avviso', {});
+
+    expect(store.getState().notices.announcement).toEqual(announcement);
+  });
+
+  test('every time the socket connects the status is read again', () => {
+    const { emit } = arrange();
+    statusService.getStatus.mockClear();
+
+    emit('connect');
+
+    expect(statusService.getStatus).toHaveBeenCalledTimes(1);
   });
 });

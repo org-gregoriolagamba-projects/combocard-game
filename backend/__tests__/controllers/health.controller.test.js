@@ -5,7 +5,7 @@
  */
 
 import { jest } from '@jest/globals';
-import { healthCheck } from '../../src/controllers/health.controller.js';
+import { healthCheck, publicStatus } from '../../src/controllers/health.controller.js';
 
 describe('Health Controller', () => {
   let mockReq;
@@ -67,5 +67,41 @@ describe('Health Controller', () => {
         })
       );
     });
+  });
+});
+
+describe('maintenance in the health check and the public status', () => {
+  const answer = (handler, gameState) => {
+    let payload;
+    const res = { status: () => res, json: (body) => { payload = body; return res; } };
+    handler({ gameState }, res);
+    return payload.data;
+  };
+  const maintenanceOn = { announcement: null, maintenance: { active: true, message: 'Torno alle 22', endsAt: null } };
+
+  test('the health check says whether the game is in maintenance', () => {
+    expect(answer(healthCheck, { announcement: null, maintenance: { active: false } }).maintenance).toBe(false);
+    expect(answer(healthCheck, maintenanceOn).maintenance).toBe(true);
+    expect(answer(healthCheck, undefined).maintenance).toBe(false);
+  });
+
+  test('the public status is the one of the game state, and nothing about the players', () => {
+    const state = {
+      ...maintenanceOn,
+      announcement: { version: 2, active: true, message: 'Ciao', severity: 'info', startsAt: null, endsAt: null, updatedBy: 'p9' },
+      players: { p1: { name: 'Anna' } },
+    };
+
+    const status = answer(publicStatus, state);
+
+    expect(status).toEqual({
+      maintenance: { active: true, message: 'Torno alle 22', endsAt: null },
+      announcement: { version: 2, message: 'Ciao', severity: 'info', startsAt: null, endsAt: null },
+    });
+    expect(JSON.stringify(status)).not.toMatch(/Anna|p9|updatedBy/);
+  });
+
+  test('with nothing published the status has nothing', () => {
+    expect(answer(publicStatus, { announcement: { active: false }, maintenance: { active: false } })).toEqual({ maintenance: null, announcement: null });
   });
 });

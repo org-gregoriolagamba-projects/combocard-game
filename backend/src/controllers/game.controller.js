@@ -18,6 +18,7 @@ import {
 } from "../services/game.service.js";
 import { trovaMiglioreConversioneJolly } from "../services/jolly.service.js";
 import { assertTermsAccepted } from "../services/player.service.js";
+import { assertNotInMaintenance, isMaintenance } from "../services/notices.service.js";
 import {
   CREDIT_MOVEMENT,
   trackCredits,
@@ -92,6 +93,7 @@ export const createGame = asyncHandler(async (req, res) => {
     throw new AppError("Player not found", 404);
   }
 
+  assertNotInMaintenance(req.gameState, req.auth.role);
   assertTermsAccepted(player);
 
   if (activeGameOf(req.gameState, playerId)) {
@@ -196,7 +198,9 @@ export const joinGame = asyncHandler(async (req, res) => {
     throw new AppError("Already in game", 400);
   }
 
-  // Who is already in the game is not interrupted (the answers above); a new player accepts first
+  // Who is already in the game is not interrupted (the answers above); a new player waits for the end
+  // of the maintenance, if there is one, and accepts the terms first
+  assertNotInMaintenance(req.gameState, req.auth.role);
   assertTermsAccepted(player);
 
   if (activeGameOf(req.gameState, playerId)) {
@@ -263,6 +267,9 @@ export const startGame = asyncHandler(async (req, res) => {
   if (req.auth.playerId !== game.players[0]?.id) {
     throw new AppError("Only the game creator can start the game", 403);
   }
+
+  // A game that has not started waits for the end of the maintenance
+  assertNotInMaintenance(req.gameState, req.auth.role);
 
   // Starting twice would charge the entry fee twice
   if (game.status !== GAME_STATUS.WAITING) {
@@ -715,11 +722,30 @@ export function applyRulesConfirmation(gameState, io, store, player) {
 }
 
 /**
+ * The maintenance is over: the games that were full and waiting start, as if the last player had just joined
+ * @param {Object} gameState - Global game state
+ * @param {Object} io - Socket.IO server
+ * @param {Object} store - Persistence store
+ */
+export function resumeWaitingGames(gameState, io, store) {
+  for (const game of Object.values(gameState.games)) {
+    if (game.status === GAME_STATUS.WAITING && game.players.length === game.maxPlayers) {
+      setTimeout(() => autoStartGame(game, game.id, io, gameState, store), 100);
+    }
+  }
+}
+
+/**
  * Helper function to auto-start a game when max players reached
  */
 async function autoStartGame(game, gameId, io, gameState, store) {
   // The creator may have started the game in the meantime
   if (game.status !== GAME_STATUS.WAITING) {
+    return;
+  }
+
+  // In maintenance nothing new starts: the game waits, and resumeWaitingGames starts it when it ends
+  if (isMaintenance(gameState)) {
     return;
   }
 

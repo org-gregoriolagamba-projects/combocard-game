@@ -2,7 +2,7 @@ import api from '../../services/api';
 import * as adminService from '../../services/adminService';
 
 vi.mock('../../services/api', () => ({
-  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
 }));
 
 describe('adminService', () => {
@@ -10,6 +10,7 @@ describe('adminService', () => {
     api.get.mockResolvedValue({ data: 'answer' });
     api.post.mockResolvedValue({ data: 'answer' });
     api.patch.mockResolvedValue({ data: 'answer' });
+    api.put.mockResolvedValue({ data: 'answer' });
     api.delete.mockResolvedValue({ data: 'answer' });
   });
 
@@ -94,5 +95,33 @@ describe('adminService', () => {
     await expect(adminService.updateSettings({ values: { drawCooldownSeconds: 12 }, reason: 'più tempo' })).resolves.toBe('answer');
 
     expect(api.patch).toHaveBeenCalledWith('/admin/settings', { values: { drawCooldownSeconds: 12 }, reason: 'più tempo' });
+  });
+
+  describe('notices', () => {
+    test('getNotices asks for the complete state', async () => {
+      await expect(adminService.getNotices()).resolves.toBe('answer');
+
+      expect(api.get).toHaveBeenCalledWith('/admin/notices');
+    });
+
+    test('publishAnnouncement sends the text, the severity and the window with a PUT', async () => {
+      const body = { message: 'Alle 22 manutenzione', severity: 'importante', startsAt: '2026-12-01T10:00:00Z', endsAt: null };
+
+      await expect(adminService.publishAnnouncement(body)).resolves.toBe('answer');
+
+      expect(api.put).toHaveBeenCalledWith('/admin/announcement', body);
+    });
+
+    test('withdrawAnnouncement is a DELETE with no body', async () => {
+      await adminService.withdrawAnnouncement();
+
+      expect(api.delete).toHaveBeenCalledWith('/admin/announcement');
+    });
+
+    test('setMaintenance sends the state, the message and the expected end with a PUT', async () => {
+      await adminService.setMaintenance({ active: true, message: 'Torno alle 22', endsAt: '2026-12-01T22:00:00Z' });
+
+      expect(api.put).toHaveBeenCalledWith('/admin/maintenance', { active: true, message: 'Torno alle 22', endsAt: '2026-12-01T22:00:00Z' });
+    });
   });
 });

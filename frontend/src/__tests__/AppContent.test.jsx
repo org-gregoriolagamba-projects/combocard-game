@@ -1,16 +1,18 @@
 import React from 'react';
-import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import AppContent from '../AppContent';
 import { renderWithProviders } from './test-utils';
 import * as authService from '../services/authService';
 import * as gameService from '../services/gameService';
 import * as adminService from '../services/adminService';
+import * as statusService from '../services/statusService';
 import { clearDraft } from '../utils/formDraft';
 
 vi.mock('../services/authService');
 vi.mock('../services/gameService');
 vi.mock('../services/adminService');
+vi.mock('../services/statusService');
 
 const preloaded = (regoleAccettateIl, screen = 'hall') => ({
   player: { id: 'p1', name: 'Anna', credits: 100, currentGameId: null, regoleAccettateIl, isLoading: false, error: null, sessionChecked: true },
@@ -182,5 +184,164 @@ describe('AppContent: reading a text from the registration form', () => {
     expect(screen.getByLabelText(/nome utente/i)).toHaveValue('Anna');
     expect(screen.getByLabelText(/password/i)).toHaveValue('long enough');
     expect(screen.getByLabelText("Ho letto l'informativa sulla privacy e accetto i termini d'uso")).toBeChecked();
+  });
+});
+
+describe('AppContent: the maintenance', () => {
+  const maintenance = { active: true, message: 'Torno alle 22', endsAt: null };
+
+  beforeEach(() => {
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+    adminService.getStats?.mockResolvedValue?.({});
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance });
+  });
+
+  // The game the player is in is in the game slice (it is where joining and creating put it); the
+  // currentGameId of the player slice is only what the server said at the login
+  const withMaintenance = ({ role = 'player', currentGameId = null, id = 'p1', playerGameId = null } = {}) => {
+    const state = preloaded('2026-11-03T10:00:00.000Z');
+    state.player = { ...state.player, id, role, currentGameId: playerGameId };
+    state.game = { ...state.game, currentGameId };
+    state.notices = { announcement: null, maintenance, status: 'ready' };
+    return state;
+  };
+
+  test('asks for the status when it opens, with or without an account', async () => {
+    const state = withMaintenance({ id: null });
+    state.notices.maintenance = null;
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalled());
+  });
+
+  test('somebody without an account sees the maintenance screen, and "Sono un amministratore" opens the login', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ id: null }) });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/nome utente/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /sono un amministratore/i }));
+
+    expect(await screen.findByLabelText(/nome utente/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('a player who is not in a game sees the maintenance screen, not the hall', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance() });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Hall' })).not.toBeInTheDocument();
+  });
+
+  test('a player who is in a game goes on, with the banner of the maintenance', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ currentGameId: 'g1' }) });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Manutenzione accesa: Torno alle 22');
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('a player who joined a game in this session goes on (the game slice, not the login, says it)', async () => {
+    // The server says: no maintenance, for now (the beforeEach of this block says the opposite)
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: null });
+    const state = withMaintenance();
+    state.notices.maintenance = null;
+    const { store } = renderWithProviders(<AppContent />, { preloadedState: state });
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+
+    store.dispatch({ type: 'game/join/fulfilled', payload: { gameId: 'g1', player: { id: 'p1' } } });
+    store.dispatch({ type: 'notices/setMaintenance', payload: maintenance });
+
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent('Manutenzione accesa: Torno alle 22');
+  });
+
+  test('a game id left at the login does not count once the player is out of the game', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ playerGameId: 'vecchia', currentGameId: null }) });
+
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+  });
+
+  test('an admin works as always, with the banner', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: withMaintenance({ role: 'admin' }) });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Manutenzione accesa');
+  });
+
+  test('when the maintenance ends the screen goes away by itself', async () => {
+    const { store } = renderWithProviders(<AppContent />, { preloadedState: withMaintenance() });
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+
+    store.dispatch({ type: 'notices/setMaintenance', payload: null });
+
+    expect(await screen.findByRole('heading', { name: 'Hall' })).toBeInTheDocument();
+  });
+
+  test('an announcement shows over any screen', async () => {
+    const state = withMaintenance({ id: null });
+    state.notices = { announcement: { version: 1, message: 'Benvenuti', severity: 'info', startsAt: null, endsAt: null }, maintenance: null, status: 'ready' };
+    state.ui.currentScreen = 'home';
+    renderWithProviders(<AppContent />, { preloadedState: state });
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Benvenuti');
+  });
+});
+
+describe('AppContent: a visitor on the maintenance screen learns when it ends', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    authService.restoreSession.mockResolvedValue(null);
+    gameService.getLobby.mockResolvedValue([]);
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: { active: true, message: 'Torno alle 22', endsAt: null } });
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const visitor = () => {
+    const state = preloaded('2026-11-03T10:00:00.000Z', 'home');
+    state.player = { ...state.player, id: null };
+    state.notices = { announcement: null, maintenance: { active: true, message: 'Torno alle 22', endsAt: null }, status: 'ready' };
+    return state;
+  };
+
+  test('without a session the status is read again every half a minute', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(statusService.getStatus).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+    expect(statusService.getStatus).toHaveBeenCalledTimes(3);
+  });
+
+  test('and when the maintenance is over the screen goes away', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    expect(await screen.findByRole('heading', { name: 'Manutenzione' })).toBeInTheDocument();
+    statusService.getStatus.mockResolvedValue({ announcement: null, maintenance: null });
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(30000); });
+
+    expect(screen.queryByRole('heading', { name: 'Manutenzione' })).not.toBeInTheDocument();
+  });
+
+  test('the status is read when the page becomes visible again', async () => {
+    renderWithProviders(<AppContent />, { preloadedState: visitor() });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+
+    expect(statusService.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  test('with a session there is no polling: the socket tells', async () => {
+    const state = preloaded('2026-11-03T10:00:00.000Z');
+    state.notices = { announcement: null, maintenance: null, status: 'ready' };
+    renderWithProviders(<AppContent />, { preloadedState: state });
+    await waitFor(() => expect(statusService.getStatus).toHaveBeenCalledTimes(1));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(90000); });
+
+    expect(statusService.getStatus).toHaveBeenCalledTimes(1);
   });
 });

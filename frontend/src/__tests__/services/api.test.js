@@ -196,6 +196,27 @@ describe('api client: patch and the status of an error', () => {
     expect(JSON.parse(options.body)).toEqual({ role: 'admin' });
   });
 
+  test('a failed request is written in the console, unless the caller says it is a read in the background', async () => {
+    global.fetch.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+
+    await expect(api.get('/games')).rejects.toThrow();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    errorSpy.mockClear();
+    await expect(api.get('/status', { quiet: true })).rejects.toThrow();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  test('quiet is not sent to the server: it is an option of the client, not of fetch', async () => {
+    global.fetch.mockResolvedValue(jsonResponse(200, { data: { ok: true } }));
+
+    await api.get('/status', { quiet: true });
+
+    const [, options] = global.fetch.mock.calls[0];
+    expect(options).not.toHaveProperty('quiet');
+    expect(options.method).toBe('GET');
+  });
+
   test('an error carries the status of the answer, so a screen can tell a 403 from the rest', async () => {
     global.fetch.mockResolvedValue(jsonResponse(403, { message: 'You do not have permission to do this' }));
 

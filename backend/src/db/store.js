@@ -200,6 +200,33 @@ export function decideRotation(record, graceSeconds, now = new Date()) {
   return age <= graceSeconds ? "grace" : "reuse";
 }
 
+// The announcement and the maintenance mode as they are before anybody writes them
+const EMPTY_ANNOUNCEMENT = {
+  version: 0, active: false, message: "", severity: "info", startsAt: null, endsAt: null, updatedAt: null, updatedBy: null,
+};
+const EMPTY_MAINTENANCE = { active: false, message: "", endsAt: null, updatedAt: null, updatedBy: null };
+
+const isoOrNull = (value) => (value ? new Date(value).toISOString() : null);
+
+const announcementFromRow = (row) => ({
+  version: row.version,
+  active: row.active,
+  message: row.message,
+  severity: row.severity,
+  startsAt: isoOrNull(row.starts_at),
+  endsAt: isoOrNull(row.ends_at),
+  updatedAt: isoOrNull(row.updated_at),
+  updatedBy: row.updated_by,
+});
+
+const maintenanceFromRow = (row) => ({
+  active: row.active,
+  message: row.message,
+  endsAt: isoOrNull(row.ends_at),
+  updatedAt: isoOrNull(row.updated_at),
+  updatedBy: row.updated_by,
+});
+
 /**
  * Store used when DATABASE_URL is not set: data lives in memory only
  * @param {Object} [options] - { drawCooldownSeconds }: where the wait between draws starts, when it is
@@ -214,6 +241,9 @@ export function createMemoryStore({ drawCooldownSeconds } = {}) {
   }
   let settingsUpdatedAt = null;
   let settingsUpdatedBy = null;
+  // One announcement at a time, and the maintenance mode: the same rows as the tables of the database
+  let announcement = { ...EMPTY_ANNOUNCEMENT };
+  let maintenance = { ...EMPTY_MAINTENANCE };
   const accounts = new Map();
   const refreshTokens = new Map();
   const audit = [];
@@ -436,6 +466,45 @@ export function createMemoryStore({ drawCooldownSeconds } = {}) {
         pushAudit(actor, "settings_changed", null, { changes: details, reason: reason.trim() });
       }
       return { before, after: { ...after }, changed };
+    },
+    async getAnnouncement() {
+      return { ...announcement };
+    },
+    async getMaintenance() {
+      return { ...maintenance };
+    },
+    async publishAnnouncement({ message, severity, startsAt = null, endsAt = null }, { actor } = {}) {
+      assertActor(actor);
+      announcement = {
+        version: announcement.version + 1,
+        active: true,
+        message,
+        severity,
+        startsAt,
+        endsAt,
+        updatedAt: new Date().toISOString(),
+        updatedBy: actor.id ?? null,
+      };
+      pushAudit(actor, "announcement_published", null, { version: announcement.version, message, severity, startsAt, endsAt });
+      return { ...announcement };
+    },
+    async withdrawAnnouncement({ actor } = {}) {
+      assertActor(actor);
+      if (announcement.active) {
+        announcement = { ...announcement, active: false, updatedAt: new Date().toISOString(), updatedBy: actor.id ?? null };
+        pushAudit(actor, "announcement_withdrawn", null, { version: announcement.version });
+      }
+      return { ...announcement };
+    },
+    async setMaintenance({ active, message = "", endsAt = null }, { actor } = {}) {
+      assertActor(actor);
+      const next = active ? { active: true, message, endsAt } : { active: false, message: "", endsAt: null };
+      if (next.active === maintenance.active && next.message === maintenance.message && next.endsAt === maintenance.endsAt) {
+        return { maintenance: { ...maintenance }, changed: false };
+      }
+      maintenance = { ...next, updatedAt: new Date().toISOString(), updatedBy: actor.id ?? null };
+      pushAudit(actor, active ? "maintenance_enabled" : "maintenance_disabled", null, active ? { message, endsAt } : {});
+      return { maintenance: { ...maintenance }, changed: true };
     },
     async cancelGame(game, refunds, { actor, reason } = {}) {
       assertGameCancellation(reason, actor);
@@ -1515,6 +1584,106 @@ export function createPostgresStore(pool, { retryDelayMs = DEFAULT_RETRY_DELAY_M
           [actor.type, actor.id ?? null, JSON.stringify({ changes: details, reason: reason.trim() })],
         );
         return { before, after, changed };
+      });
+    },
+
+    /**
+     * The announcement for all the players, with when and by whom it was last changed
+     * @returns {Promise<Object>} { version, active, message, severity, startsAt, endsAt, updatedAt, updatedBy }
+     */
+    async getAnnouncement() {
+      const { rows } = await pool.query("SELECT * FROM announcement WHERE id = 1");
+      return announcementFromRow(rows[0]);
+    },
+
+    /**
+     * The maintenance mode
+     * @returns {Promise<Object>} { active, message, endsAt, updatedAt, updatedBy }
+     */
+    async getMaintenance() {
+      const { rows } = await pool.query("SELECT * FROM maintenance WHERE id = 1");
+      return maintenanceFromRow(rows[0]);
+    },
+
+    /**
+     * Publish an announcement, with the audit row, in one transaction: it replaces the previous one and
+     * raises the version. The row is locked, so two publications at the same time get two versions.
+     * @param {Object} notice - { message, severity, startsAt, endsAt }
+     * @param {Object} options - { actor }
+     * @returns {Promise<Object>} The announcement
+     */
+    async publishAnnouncement({ message, severity, startsAt = null, endsAt = null }, { actor } = {}) {
+      assertActor(actor);
+      return withTransaction(async (client) => {
+        const { rows } = await client.query(
+          `UPDATE announcement
+           SET version = version + 1, active = true, message = $1, severity = $2, starts_at = $3, ends_at = $4,
+               updated_at = now(), updated_by = $5
+           WHERE id = 1 RETURNING *`,
+          [message, severity, startsAt, endsAt, actor.id ?? null],
+        );
+        const published = announcementFromRow(rows[0]);
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'announcement_published', NULL, $3)`,
+          [actor.type, actor.id ?? null, JSON.stringify({ version: published.version, message, severity, startsAt, endsAt })],
+        );
+        return published;
+      });
+    },
+
+    /**
+     * Withdraw the announcement, with the audit row, in one transaction. The version stays. Nothing is
+     * written when there is no active announcement.
+     * @param {Object} options - { actor }
+     * @returns {Promise<Object>} The announcement
+     */
+    async withdrawAnnouncement({ actor } = {}) {
+      assertActor(actor);
+      return withTransaction(async (client) => {
+        const { rows: [current] } = await client.query("SELECT * FROM announcement WHERE id = 1 FOR UPDATE");
+        if (!current.active) {
+          return announcementFromRow(current);
+        }
+        const { rows } = await client.query(
+          "UPDATE announcement SET active = false, updated_at = now(), updated_by = $1 WHERE id = 1 RETURNING *",
+          [actor.id ?? null],
+        );
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, 'announcement_withdrawn', NULL, $3)`,
+          [actor.type, actor.id ?? null, JSON.stringify({ version: current.version })],
+        );
+        return announcementFromRow(rows[0]);
+      });
+    },
+
+    /**
+     * Turn the maintenance mode on or off, with the audit row, in one transaction. Nothing is written
+     * when the state does not change.
+     * @param {Object} change - { active, message, endsAt }
+     * @param {Object} options - { actor }
+     * @returns {Promise<Object>} { maintenance, changed }
+     */
+    async setMaintenance({ active, message = "", endsAt = null }, { actor } = {}) {
+      assertActor(actor);
+      return withTransaction(async (client) => {
+        const { rows: [current] } = await client.query("SELECT * FROM maintenance WHERE id = 1 FOR UPDATE");
+        const before = maintenanceFromRow(current);
+        const next = active ? { active: true, message, endsAt: isoOrNull(endsAt) } : { active: false, message: "", endsAt: null };
+        if (next.active === before.active && next.message === before.message && next.endsAt === before.endsAt) {
+          return { maintenance: before, changed: false };
+        }
+        const { rows } = await client.query(
+          "UPDATE maintenance SET active = $1, message = $2, ends_at = $3, updated_at = now(), updated_by = $4 WHERE id = 1 RETURNING *",
+          [next.active, next.message, next.endsAt, actor.id ?? null],
+        );
+        await client.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_id, details)
+           VALUES ($1, $2, $3, NULL, $4)`,
+          [actor.type, actor.id ?? null, active ? "maintenance_enabled" : "maintenance_disabled", JSON.stringify(active ? { message, endsAt: next.endsAt } : {})],
+        );
+        return { maintenance: maintenanceFromRow(rows[0]), changed: true };
       });
     },
 

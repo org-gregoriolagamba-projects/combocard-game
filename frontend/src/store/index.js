@@ -9,6 +9,7 @@ import playerReducer from "./slices/playerSlice";
 import gameReducer from "./slices/gameSlice";
 import uiReducer from "./slices/uiSlice";
 import settingsReducer from "./slices/settingsSlice";
+import noticeReducer from "./slices/noticeSlice";
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     game: gameReducer,
     ui: uiReducer,
     settings: settingsReducer,
+    notices: noticeReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

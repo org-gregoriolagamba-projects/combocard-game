@@ -44,6 +44,7 @@ describe('translateServerError', () => {
     ['Cannot suspend the last admin', "Non si può sospendere l'ultimo admin"],
     ['You do not have permission to do this', 'Non hai i permessi per farlo'],
     ['You must accept the terms of use first', "Per continuare devi accettare i termini d'uso"],
+    ['The game is in maintenance', 'Il gioco è in manutenzione: riprova più tardi'],
     ['The terms of use have changed, reload the page', 'I testi sono cambiati: ricarica la pagina'],
     ['Waiting for all players to confirm they read the rules', 'Aspetta che tutti i giocatori confermino di aver letto le regole'],
   ])('"%s" is shown as "%s"', (english, italian) => {

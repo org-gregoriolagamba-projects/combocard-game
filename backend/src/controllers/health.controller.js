@@ -5,6 +5,7 @@
  */
 
 import { sendSuccess } from "../utils/response.utils.js";
+import { isMaintenance, statusView } from "../services/notices.service.js";
 
 /**
  * Health check endpoint
@@ -15,7 +16,16 @@ export const healthCheck = (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    maintenance: isMaintenance(req.gameState ?? {}),
   });
+};
+
+/**
+ * What anybody can read, with no account: the maintenance mode and the announcement that is visible
+ * GET /api/status
+ */
+export const publicStatus = (req, res) => {
+  sendSuccess(res, statusView(req.gameState ?? {}));
 };
 
 /**
