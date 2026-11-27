@@ -3,7 +3,7 @@
 // Uso: node check-docs.mjs [radice-del-repository] [--release]
 // Esce con 1 se trova almeno un ERRORE. Gli AVVISI vanno guardati a mano.
 // Con --release (prima di pubblicare una versione) i valori dei testi legali non ancora impostati
-// (hosting, conservazione dei log, data di entrata in vigore, e-mail di contatto) sono ERRORI.
+// (conservazioni dei fornitori, data di entrata in vigore, e-mail di contatto) sono ERRORI.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';

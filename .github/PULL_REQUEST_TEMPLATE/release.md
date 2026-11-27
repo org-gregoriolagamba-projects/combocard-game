@@ -20,7 +20,7 @@ Variabili d'ambiente nuove o cambiate (o «nessuna»):
 
 ## Verifiche
 - [ ] **Documentazione rivista** contro il codice (README, GAME_DESIGN, DEPLOYMENT, AUTH, DATABASE, TEST_SUITE, CONTRIBUTING), con la lista di CONTRIBUTING.md
-- [ ] `check-docs.mjs --release` senza errori: valori di `legale.js` e `contatti.js` impostati (e-mail di contatto, hosting, conservazione dei log, data)
+- [ ] `check-docs.mjs --release` senza errori: valori di `legale.js` e `contatti.js` impostati (e-mail, fornitori, conservazioni di Cloudflare e Neon, data)
 - [ ] Versione aggiornata nei quattro pacchetti
 - [ ] CI verde, e2e compresi
 - [ ] Prova a mano dei flussi cambiati

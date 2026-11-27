@@ -4,16 +4,25 @@ import '@testing-library/jest-dom';
 import { InformativaScreen, TerminiScreen } from '../../components/legal';
 import { renderWithProviders } from '../test-utils';
 
+const FORNITORI = [
+  { nome: 'Render', societa: 'Render Services, Inc.', paese: 'Stati Uniti', ruolo: "hosting dell'applicazione e dei log del server", dove: 'server a Francoforte (Germania)', fuoriSee: true, documento: 'https://render.example/dpa' },
+  { nome: 'Neon', societa: 'Neon, parte di Databricks, Inc.', paese: 'Stati Uniti', ruolo: 'database', dove: 'server AWS a Francoforte (Germania)', fuoriSee: true, documento: 'https://neon.example/terms' },
+  { nome: 'OVHcloud', societa: 'OVHcloud', paese: 'Francia', ruolo: 'dominio e casella di posta', dove: '', fuoriSee: false, documento: '' },
+];
+
 const config = vi.hoisted(() => ({
   legale: {
     versione: '2026-1',
     titolare: 'Gregorio La Gamba',
     etaMinima: 14,
-    hosting: { nome: null, paese: null },
+    emailPrivacy: null,
+    fornitori: [],
     conservazioneLog: null,
+    conservazioneCloudflare: null,
+    conservazioneBackup: null,
     vigenteDal: null,
   },
-  contatti: { autore: 'Gregorio La Gamba', email: null },
+  contatti: { autore: 'Gregorio La Gamba', email: 'info@esempio.it' },
 }));
 vi.mock('../../config/legale', () => ({
   get LEGALE() {
@@ -35,17 +44,21 @@ const ui = (currentScreen, legalReturn = 'hall') => ({
 });
 
 const setAll = () => {
-  config.legale.hosting = { nome: 'Esempio Hosting', paese: 'Italia' };
-  config.legale.conservazioneLog = '30 giorni';
+  config.legale.emailPrivacy = 'privacy@esempio.it';
+  config.legale.fornitori = FORNITORI;
+  config.legale.conservazioneLog = '7 giorni';
+  config.legale.conservazioneCloudflare = 'nessun log conservato';
+  config.legale.conservazioneBackup = '1 giorno';
   config.legale.vigenteDal = '1 dicembre 2026';
-  config.contatti.email = 'privacy@esempio.it';
 };
 
 beforeEach(() => {
-  config.legale.hosting = { nome: null, paese: null };
+  config.legale.emailPrivacy = null;
+  config.legale.fornitori = FORNITORI;
   config.legale.conservazioneLog = null;
+  config.legale.conservazioneCloudflare = null;
+  config.legale.conservazioneBackup = null;
   config.legale.vigenteDal = null;
-  config.contatti.email = null;
 });
 
 describe('InformativaScreen', () => {
@@ -109,7 +122,7 @@ describe('InformativaScreen', () => {
     expect(within(dati).getByText(/data di creazione dell'account/)).toBeInTheDocument();
     expect(within(dati).getByText(/sessioni aperte/)).toBeInTheDocument();
     const tempi = screen.getByRole('heading', { name: 'Per quanto tempo li conserviamo' }).closest('section');
-    expect(within(tempi).getByText(/senza una scadenza/)).toBeInTheDocument();
+    expect(within(tempi).getByText(/finché servono alla gestione del servizio/)).toBeInTheDocument();
   });
 
   test('the cookie lasts 7 days from the last use, and the two preferences of the browser are named', () => {
@@ -138,7 +151,85 @@ describe('InformativaScreen', () => {
     renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
     expect(screen.queryByTestId('da-indicare')).not.toBeInTheDocument();
     expect(screen.getAllByText(/privacy@esempio.it/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Esempio Hosting/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Render Services, Inc./).length).toBeGreaterThan(0);
+  });
+
+  test('the contact of the notice is the privacy address, not the general one of the app', () => {
+    setAll();
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    expect(screen.getAllByText(/privacy@esempio.it/).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/info@esempio.it/)).not.toBeInTheDocument();
+  });
+
+  describe('the providers', () => {
+    test('are listed with who they are, where they are, what they do and where the data is', () => {
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      const section = screen.getByRole('heading', { name: 'A chi li comunichiamo' }).closest('section');
+      // The name is in the list and in the link to the document
+      expect(within(section).getAllByText('Render').length).toBeGreaterThanOrEqual(1);
+      expect(within(section).getByText(/Render Services, Inc\./)).toBeInTheDocument();
+      expect(within(section).getByText(/server a Francoforte \(Germania\)/)).toBeInTheDocument();
+      expect(within(section).getByText(/server AWS a Francoforte/)).toBeInTheDocument();
+      expect(within(section).getByText(/hosting dell'applicazione e dei log del server/)).toBeInTheDocument();
+      expect(within(section).getByText('OVHcloud')).toBeInTheDocument();
+      expect(within(section).getByText(/Francia/)).toBeInTheDocument();
+    });
+
+    test('say, for the ones outside the European Economic Area, what the transfer rests on, with the link to their document', () => {
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      const section = screen.getByRole('heading', { name: 'A chi li comunichiamo' }).closest('section');
+      expect(within(section).getByText(/Fuori dallo Spazio economico europeo/)).toBeInTheDocument();
+      expect(within(section).getByText(/clausole contrattuali standard/)).toBeInTheDocument();
+      expect(within(section).getByText(/Data Privacy Framework/)).toBeInTheDocument();
+      expect(within(section).getByRole('link', { name: /Render/ })).toHaveAttribute('href', 'https://render.example/dpa');
+      expect(within(section).getByRole('link', { name: /Neon/ })).toHaveAttribute('href', 'https://neon.example/terms');
+      // The one in France is inside the Area: no document, no link
+      expect(within(section).queryByRole('link', { name: /OVHcloud/ })).not.toBeInTheDocument();
+    });
+
+    test('nothing is sold and nothing goes to anybody else, apart from what the law requires', () => {
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      const section = screen.getByRole('heading', { name: 'A chi li comunichiamo' }).closest('section');
+      expect(within(section).getByText(/Non vendiamo i dati/)).toBeInTheDocument();
+    });
+  });
+
+  describe('how long it all is kept', () => {
+    const tempi = () => screen.getByRole('heading', { name: 'Per quanto tempo li conserviamo' }).closest('section');
+
+    test('the server logs, the traffic of the network, the backups of the database, each with its own value', () => {
+      setAll();
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      expect(within(tempi()).getByText(/sul fornitore di\s+hosting: 7 giorni/)).toBeInTheDocument();
+      expect(within(tempi()).getByText(/nessun log conservato/)).toBeInTheDocument();
+      expect(within(tempi()).getByText(/1 giorno/)).toBeInTheDocument();
+    });
+
+    test('what is not decided yet shows [da indicare], one for each value', () => {
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      expect(within(tempi()).getAllByTestId('da-indicare').length).toBeGreaterThanOrEqual(3);
+    });
+
+    test('the register of the operations is kept as long as the management of the service needs it, and holds no password nor name of a deleted account', () => {
+      renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+      // The text of the list item without the bold words in it
+      expect(within(tempi()).getByText(/che teniamo finché serve alla gestione del servizio/)).toBeInTheDocument();
+      expect(within(tempi()).getByText(/né password né nomi utente degli account eliminati/)).toBeInTheDocument();
+    });
+  });
+
+  test('says that what the player writes to the addresses of the service is kept in the mailbox', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    const dati = screen.getByRole('heading', { name: 'Quali dati trattiamo' }).closest('section');
+    expect(within(dati).getByText(/messaggi che ci scrivi/)).toBeInTheDocument();
   });
 
   test('"Indietro" goes back to the screen the player came from', () => {
