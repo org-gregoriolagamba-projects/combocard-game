@@ -46,7 +46,7 @@ I documenti restano indietro in silenzio: a ogni versione qualcosa cambia nel co
 | Percorsi e collegamenti | un collegamento non porta a un file; (avviso) un percorso citato non esiste e non è ignorato da git |
 | Tabelle | una tabella delle migrazioni non è in `DATABASE.md` |
 | Versioni | (avviso) i quattro pacchetti hanno versioni diverse |
-| Testi legali | la versione dei termini è diversa nel backend (`config/legale.js`) e nel frontend; i valori non impostati di `frontend/src/config/legale.js` (hosting, conservazione dei log, data) e l'e-mail di `contatti.js` sono avvisi, e **errori con `--release`** |
+| Testi legali | la versione dei termini è diversa nel backend (`config/legale.js`) e nel frontend; i valori non impostati di `frontend/src/config/legale.js` (data di entrata in vigore) e l'e-mail di `contatti.js` sono avvisi, e **errori con `--release`** |
 
 ## Scuse da non accettare
 

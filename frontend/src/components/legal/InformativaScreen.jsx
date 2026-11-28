@@ -10,7 +10,6 @@
 
 import React from "react";
 import { LEGALE } from "../../config/legale";
-import { CONTATTI } from "../../config/contatti";
 import Dato from "./Dato";
 import LegalLayout, { Sezione, LinkTesto } from "./LegalLayout";
 
@@ -26,7 +25,7 @@ function InformativaScreen() {
       <Sezione titolo="Chi è il titolare">
         <p>
           Il titolare del trattamento è {LEGALE.titolare}, persona fisica, che ha creato e gestisce ComboCard.
-          Per qualsiasi domanda sui tuoi dati scrivi a <Dato valore={CONTATTI.email} />.
+          Per qualsiasi domanda sui tuoi dati scrivi a <Dato valore={LEGALE.emailPrivacy} />.
         </p>
       </Sezione>
 
@@ -55,6 +54,11 @@ function InformativaScreen() {
             chi, che cosa, quando e, per l&apos;amministrazione, il perché. Non contiene mai la tua password.
           </li>
           <li>La <strong>data e la versione</strong> dei termini d&apos;uso che hai accettato, e la data in cui hai confermato di aver letto le regole.</li>
+          <li>
+            I <strong>messaggi che ci scrivi</strong> (a {LEGALE.emailPrivacy ?? "…"} o all&apos;indirizzo generale del servizio), con l&apos;indirizzo
+            da cui li mandi: restano nella casella di posta, ospitata da un fornitore (vedi «A chi li comunichiamo»), per il tempo
+            che serve a risponderti.
+          </li>
           <li>
             Le <strong>sessioni aperte</strong> sui tuoi dispositivi, che teniamo come identificativi cifrati, e un
             <strong> cookie di sessione</strong>, tecnico, che serve a tenerti collegato (vedi «Cookie»).
@@ -90,11 +94,28 @@ function InformativaScreen() {
             «Utente eliminato». Il saldo si azzera, senza rimborso. Restano, <strong>senza il tuo nome</strong>, i movimenti
             dei crediti, le partite concluse, il registro delle operazioni, la data di creazione dell&apos;account e le date e la versione
             delle accettazioni: servono a tenere corretti i conti e le partite degli altri giocatori e alla sicurezza, e li
-            teniamo senza una scadenza prestabilita. I motivi scritti a mano dall&apos;amministrazione nel registro restano
-            com&apos;erano.
+            teniamo finché servono alla gestione del servizio (non c&apos;è una scadenza prestabilita). I motivi scritti a mano
+            dall&apos;amministrazione nel registro restano com&apos;erano.
           </li>
           <li>
-            I <strong>log del server</strong>: <Dato valore={LEGALE.conservazioneLog} />.
+            I <strong>log del server</strong> (indirizzo IP, data e ora, indirizzo richiesto e esito di ogni richiesta), sul fornitore di
+            hosting: <Dato valore={LEGALE.conservazioneLog} />.
+          </li>
+          <li>
+            Il <strong>traffico che passa dalla rete</strong> (DNS, HTTPS, cache): <Dato valore={LEGALE.conservazioneCloudflare} />.
+          </li>
+          <li>
+            Le <strong>copie e la cronologia del database</strong>, per ripristinarlo in caso di errore: <Dato valore={LEGALE.conservazioneBackup} />.
+          </li>
+          <li>
+            I <strong>messaggi nella casella di posta</strong>: li teniamo per il tempo che serve a risponderti. Il fornitore della
+            posta analizza in automatico i messaggi, in entrata e in uscita, per fermare lo spam e i programmi malevoli; conserva
+            12 mesi quelli in uscita che blocca, e i messaggi che segnaliamo come indesiderati possono essere analizzati e passati ai
+            partner che lo aiutano contro lo spam. Se il servizio finisce, i contenuti restano 15 giorni prima di essere eliminati.
+          </li>
+          <li>
+            Il <strong>registro delle operazioni</strong>, che teniamo finché serve alla gestione del servizio: non contiene mai né password né nomi
+            utente degli account eliminati.
           </li>
           <li>
             Il <strong>cookie di sessione</strong>: dura 7 giorni dall&apos;ultimo utilizzo (a ogni uso si rinnova) o fino a quando
@@ -104,17 +125,45 @@ function InformativaScreen() {
       </Sezione>
 
       <Sezione titolo="A chi li comunichiamo">
+        <p>Per far funzionare il servizio ci appoggiamo a fornitori che trattano i dati per nostro conto:</p>
+        <ul>
+          {LEGALE.fornitori.map((f) => (
+            <li key={f.nome}>
+              <strong>{f.nome}</strong> ({f.societa}, {f.paese}): {f.ruolo}
+              {f.dove ? `; ${f.dove}` : ""}.
+            </li>
+          ))}
+        </ul>
         <p>
-          I dati sono ospitati da <Dato valore={LEGALE.hosting.nome} /> (<Dato valore={LEGALE.hosting.paese} />), che li tratta
-          per nostro conto come fornitore del servizio di hosting. Non vendiamo i dati e non li diamo ad altri, salvo
-          obblighi di legge. Il tuo nome utente è visibile agli altri giocatori delle tue partite.
+          <strong>Fuori dallo Spazio economico europeo.</strong> Alcuni di questi fornitori sono società degli Stati Uniti: anche
+          quando i dati stanno su server in Germania, la società che li gestisce è statunitense, e il suo personale può accedervi per
+          far funzionare il servizio e dare assistenza (Render scrive nel suo contratto che la sua attività principale di trattamento
+          si svolge negli Stati Uniti). Per questi trasferimenti i loro contratti prevedono come garanzia la certificazione
+          all&apos;EU-U.S. Data Privacy Framework (che la Commissione europea riconosce come adeguato) e, se non si applica, le clausole
+          contrattuali standard della Commissione europea. Cloudflare tratta il traffico, compreso l&apos;indirizzo IP, nella sua rete in
+          tutto il mondo.
+          Come ciascuno li descrive:{" "}
+          {LEGALE.fornitori
+            .filter((f) => f.fuoriSee && f.documento)
+            .map((f, i, tutti) => (
+              <React.Fragment key={f.nome}>
+                <a href={f.documento} className="font-bold text-testo underline decoration-2 underline-offset-4">
+                  {f.nome}
+                </a>
+                {i < tutti.length - 1 ? ", " : "."}
+              </React.Fragment>
+            ))}
+        </p>
+        <p>
+          Non vendiamo i dati e non li diamo ad altri, salvo obblighi di legge. Il tuo nome utente è visibile agli altri giocatori
+          delle tue partite.
         </p>
       </Sezione>
 
       <Sezione titolo="I tuoi diritti">
         <p>
           Puoi chiederci di accedere ai tuoi dati, correggerli, cancellarli, limitarne l&apos;uso, riceverli in un formato
-          leggibile (portabilità) e opporti al trattamento (artt. 15-22 GDPR). Scrivi a <Dato valore={CONTATTI.email} />: ti
+          leggibile (portabilità) e opporti al trattamento (artt. 15-22 GDPR). Scrivi a <Dato valore={LEGALE.emailPrivacy} />: ti
           rispondiamo entro un mese. Puoi anche eliminare l&apos;account da solo, dalla hall, con «Elimina il mio account» (o
           dalla schermata «Prima di continuare»). Non è possibile mentre sei in una partita in attesa o in corso: prima la
           lasci o aspetti che finisca.

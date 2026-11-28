@@ -7,7 +7,7 @@
  * in an important way, the version changes and everybody accepts again.
  *
  * A value that is `null` is shown as "[da indicare]" in the texts. The values that depend on the
- * publication (hosting, retention of the logs, date) and the contact e-mail (`contatti.js`) must be
+ * publication (what Cloudflare and Neon keep, the date) and the contact e-mail (`contatti.js`) must be
  * set before the site is published: `check-docs.mjs --release` stops a release that still has them.
  */
 
@@ -15,9 +15,58 @@ export const LEGALE = {
   versione: "2026-1",
   titolare: "Gregorio La Gamba",
   etaMinima: 14,
-  hosting: { nome: null, paese: null },
-  // How long the server logs are kept, for example "30 giorni"
-  conservazioneLog: null,
-  // The day the texts came into force, for example "1 dicembre 2026"
+  // Where the player writes about the data (the general contact of the app is in contatti.js)
+  emailPrivacy: "privacy@combocard.it",
+  // Who treats the data for us. `fuoriSee`: the company is outside the European Economic Area, so the
+  // notice says what the transfer rests on and links the document of the provider (`documento`).
+  // Resend (the e-mails of the password recovery) is added when the app starts to use it (#44).
+  fornitori: [
+    {
+      nome: "Render",
+      societa: "Render Services, Inc.",
+      paese: "Stati Uniti",
+      ruolo: "hosting dell'applicazione e dei log del server",
+      dove: "server a Francoforte (Germania)",
+      fuoriSee: true,
+      documento: "https://render.com/dpa",
+    },
+    {
+      nome: "Neon",
+      societa: "Neon, parte di Databricks, Inc.",
+      paese: "Stati Uniti",
+      ruolo: "database",
+      dove: "server AWS a Francoforte (Germania)",
+      fuoriSee: true,
+      documento: "https://neon.com/platform-terms",
+    },
+    {
+      nome: "Cloudflare",
+      societa: "Cloudflare, Inc.",
+      paese: "Stati Uniti",
+      ruolo: "DNS, HTTPS e cache",
+      dove: "rete globale",
+      fuoriSee: true,
+      documento: "https://www.cloudflare.com/cloudflare-customer-dpa/",
+    },
+    {
+      nome: "OVHcloud",
+      // The company of the contract (Milan, Italy); the OVHcloud group is French
+      societa: "OVH S.r.l.",
+      paese: "Italia",
+      ruolo: "dominio e casella di posta",
+      // The DPA of OVH S.r.l. (17.10.2025, 6.2-6.4): companies of the group may process remotely from outside the EEA,
+      // under the standard contractual clauses. Not `null`: it would mean "still to be decided" for the release check
+      dove: "le società del gruppo OVHcloud possono trattare i dati anche da paesi fuori dallo Spazio economico europeo, per la sicurezza e la manutenzione del servizio, con le clausole contrattuali standard della Commissione europea",
+      fuoriSee: false,
+      documento: "",
+    },
+  ],
+  // How long each provider keeps what we cannot delete ourselves
+  conservazioneLog: "7 giorni",
+  // What Cloudflare keeps about the traffic: we use the free plan and have switched on no log of the requests
+  conservazioneCloudflare: "non conserviamo i log delle richieste: non ne abbiamo attivato nessuno nel nostro account",
+  // How long Neon keeps the history of the database for the restore: the free plan keeps 6 hours of it
+  conservazioneBackup: "6 ore (la cronologia del piano gratuito di Neon, che poi viene eliminata)",
+  // The day the texts came into force, for example "1 dicembre 2026": set when the site is published
   vigenteDal: null,
 };

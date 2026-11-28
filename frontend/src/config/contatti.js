@@ -1,15 +1,15 @@
 /**
  * Contacts shown in the "Info e contatti" dialog
  *
- * The only place to change a name or a link. The email stays `null` until there is an
- * address that someone reads: with `null` the dialog does not show it.
+ * The only place to change a name or a link. The email is the general contact of the app; with `null`
+ * the dialog does not show it. The contact for the privacy is `emailPrivacy` in legale.js.
  */
 
 export const CONTATTI = {
   autore: "Gregorio La Gamba",
   linkedin: "https://www.linkedin.com/in/gregoriolagamba/",
   repository: "https://github.com/org-gregoriolagamba-projects/combocard-game",
-  email: null,
+  email: "info@combocard.it",
 };
 
 /** The name of the app and the first year of the copyright (the year of the first commit) */
