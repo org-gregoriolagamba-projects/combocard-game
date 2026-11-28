@@ -131,9 +131,11 @@ function InformativaScreen() {
         <p>
           <strong>Fuori dallo Spazio economico europeo.</strong> Alcuni di questi fornitori sono società degli Stati Uniti: anche
           quando i dati stanno su server in Germania, la società che li gestisce è statunitense, e il suo personale può accedervi per
-          far funzionare il servizio e dare assistenza. Questi trasferimenti si basano sulle garanzie dei loro contratti: le clausole
-          contrattuali standard della Commissione europea e la certificazione all&apos;EU-U.S. Data Privacy Framework (che la
-          Commissione europea riconosce come adeguato). Cloudflare tratta il traffico, compreso l&apos;indirizzo IP, nella sua rete in tutto il mondo.
+          far funzionare il servizio e dare assistenza (Render scrive nel suo contratto che la sua attività principale di trattamento
+          si svolge negli Stati Uniti). Per questi trasferimenti i loro contratti prevedono come garanzia la certificazione
+          all&apos;EU-U.S. Data Privacy Framework (che la Commissione europea riconosce come adeguato) e, se non si applica, le clausole
+          contrattuali standard della Commissione europea. Cloudflare tratta il traffico, compreso l&apos;indirizzo IP, nella sua rete in
+          tutto il mondo.
           Come ciascuno li descrive:{" "}
           {LEGALE.fornitori
             .filter((f) => f.fuoriSee && f.documento)

@@ -184,6 +184,9 @@ describe('InformativaScreen', () => {
       expect(within(section).getByText(/Fuori dallo Spazio economico europeo/)).toBeInTheDocument();
       expect(within(section).getByText(/clausole contrattuali standard/)).toBeInTheDocument();
       expect(within(section).getByText(/Data Privacy Framework/)).toBeInTheDocument();
+      // The framework first, the clauses when it does not apply: as the contracts of the providers say
+      expect(within(section).getByText(/se non si applica, le clausole contrattuali standard/)).toBeInTheDocument();
+      expect(within(section).getByText(/attività principale di trattamento si svolge negli Stati Uniti/)).toBeInTheDocument();
       expect(within(section).getByRole('link', { name: /Render/ })).toHaveAttribute('href', 'https://render.example/dpa');
       expect(within(section).getByRole('link', { name: /Neon/ })).toHaveAttribute('href', 'https://neon.example/terms');
       // The one in France is inside the Area: no document, no link
