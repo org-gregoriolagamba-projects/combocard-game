@@ -235,6 +235,17 @@ describe('InformativaScreen', () => {
     expect(within(dati).getByText(/messaggi che ci scrivi/)).toBeInTheDocument();
   });
 
+  test('says what the mailbox provider does with the messages: the analysis against the spam, the 12 months, the 15 days', () => {
+    renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa') });
+
+    const tempi = screen.getByRole('heading', { name: 'Per quanto tempo li conserviamo' }).closest('section');
+    const voce = within(tempi).getByText(/messaggi nella casella di posta/).closest('li');
+    expect(voce).toHaveTextContent(/analizza in automatico/);
+    expect(voce).toHaveTextContent(/12 mesi/);
+    expect(voce).toHaveTextContent(/15 giorni/);
+    expect(voce).toHaveTextContent(/partner/);
+  });
+
   test('"Indietro" goes back to the screen the player came from', () => {
     const { store } = renderWithProviders(<InformativaScreen />, { preloadedState: ui('informativa', 'hall') });
 

@@ -108,6 +108,12 @@ function InformativaScreen() {
             Le <strong>copie e la cronologia del database</strong>, per ripristinarlo in caso di errore: <Dato valore={LEGALE.conservazioneBackup} />.
           </li>
           <li>
+            I <strong>messaggi nella casella di posta</strong>: li teniamo per il tempo che serve a risponderti. Il fornitore della
+            posta analizza in automatico i messaggi, in entrata e in uscita, per fermare lo spam e i programmi malevoli; conserva
+            12 mesi quelli in uscita che blocca, e i messaggi che segnaliamo come indesiderati possono essere analizzati e passati ai
+            partner che lo aiutano contro lo spam. Se il servizio finisce, i contenuti restano 15 giorni prima di essere eliminati.
+          </li>
+          <li>
             Il <strong>registro delle operazioni</strong>, che teniamo finché serve alla gestione del servizio: non contiene mai né password né nomi
             utente degli account eliminati.
           </li>
