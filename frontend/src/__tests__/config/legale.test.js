@@ -35,9 +35,16 @@ describe('LEGALE', () => {
     expect(LEGALE.conservazioneLog).toBe('7 giorni');
   });
 
-  test('what is still to be decided is not set: the logs of Cloudflare, the backups of Neon and the date', () => {
-    expect(LEGALE.conservazioneCloudflare).toBeNull();
-    expect(LEGALE.conservazioneBackup).toBeNull();
+  test('Cloudflare keeps no log of the requests for us (none is switched on, free plan)', () => {
+    expect(LEGALE.conservazioneCloudflare).toMatch(/non conserviamo i log delle richieste/);
+  });
+
+  test('the history of the database is 6 hours: the free plan of Neon', () => {
+    expect(LEGALE.conservazioneBackup).toMatch(/^6 ore/);
+    expect(LEGALE.conservazioneBackup).toMatch(/piano gratuito di Neon/);
+  });
+
+  test('only the day the texts come into force is still to be set', () => {
     expect(LEGALE.vigenteDal).toBeNull();
   });
 });

@@ -61,10 +61,10 @@ export const LEGALE = {
   ],
   // How long each provider keeps what we cannot delete ourselves
   conservazioneLog: "7 giorni",
-  // What Cloudflare keeps about the traffic: depends on what is switched on in our account
-  conservazioneCloudflare: null,
-  // How long Neon keeps the history of the database for the restore: depends on the plan
-  conservazioneBackup: null,
+  // What Cloudflare keeps about the traffic: we use the free plan and have switched on no log of the requests
+  conservazioneCloudflare: "non conserviamo i log delle richieste: non ne abbiamo attivato nessuno nel nostro account",
+  // How long Neon keeps the history of the database for the restore: the free plan keeps 6 hours of it
+  conservazioneBackup: "6 ore (la cronologia del piano gratuito di Neon, che poi viene eliminata)",
   // The day the texts came into force, for example "1 dicembre 2026": set when the site is published
   vigenteDal: null,
 };
