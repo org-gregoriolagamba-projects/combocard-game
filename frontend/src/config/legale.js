@@ -50,8 +50,9 @@ export const LEGALE = {
     },
     {
       nome: "OVHcloud",
-      societa: "OVHcloud",
-      paese: "Francia",
+      // The company of the contract (Milan, Italy); the OVHcloud group is French
+      societa: "OVH S.r.l.",
+      paese: "Italia",
       ruolo: "dominio e casella di posta",
       // Empty, not null: `null` means "still to be decided" for the release check
       dove: "",

@@ -7,7 +7,7 @@ import { renderWithProviders } from '../test-utils';
 const FORNITORI = [
   { nome: 'Render', societa: 'Render Services, Inc.', paese: 'Stati Uniti', ruolo: "hosting dell'applicazione e dei log del server", dove: 'server a Francoforte (Germania)', fuoriSee: true, documento: 'https://render.example/dpa' },
   { nome: 'Neon', societa: 'Neon, parte di Databricks, Inc.', paese: 'Stati Uniti', ruolo: 'database', dove: 'server AWS a Francoforte (Germania)', fuoriSee: true, documento: 'https://neon.example/terms' },
-  { nome: 'OVHcloud', societa: 'OVHcloud', paese: 'Francia', ruolo: 'dominio e casella di posta', dove: '', fuoriSee: false, documento: '' },
+  { nome: 'OVHcloud', societa: 'OVH S.r.l.', paese: 'Italia', ruolo: 'dominio e casella di posta', dove: '', fuoriSee: false, documento: '' },
 ];
 
 const config = vi.hoisted(() => ({
@@ -174,7 +174,7 @@ describe('InformativaScreen', () => {
       expect(within(section).getByText(/server AWS a Francoforte/)).toBeInTheDocument();
       expect(within(section).getByText(/hosting dell'applicazione e dei log del server/)).toBeInTheDocument();
       expect(within(section).getByText('OVHcloud')).toBeInTheDocument();
-      expect(within(section).getByText(/Francia/)).toBeInTheDocument();
+      expect(within(section).getByText(/OVH S\.r\.l\., Italia/)).toBeInTheDocument();
     });
 
     test('say, for the ones outside the European Economic Area, what the transfer rests on, with the link to their document', () => {

@@ -22,7 +22,7 @@ describe('LEGALE', () => {
     expect(byName.Neon).toMatchObject({ societa: 'Neon, parte di Databricks, Inc.', paese: 'Stati Uniti', fuoriSee: true });
     expect(byName.Neon.dove).toMatch(/AWS.*Francoforte/);
     expect(byName.Cloudflare).toMatchObject({ paese: 'Stati Uniti', fuoriSee: true });
-    expect(byName.OVHcloud).toMatchObject({ paese: 'Francia', fuoriSee: false });
+    expect(byName.OVHcloud).toMatchObject({ societa: 'OVH S.r.l.', paese: 'Italia', fuoriSee: false });
   });
 
   test('every provider outside the Area has the link to the document that describes the transfers', () => {
