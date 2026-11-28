@@ -54,8 +54,9 @@ export const LEGALE = {
       societa: "OVH S.r.l.",
       paese: "Italia",
       ruolo: "dominio e casella di posta",
-      // Empty, not null: `null` means "still to be decided" for the release check
-      dove: "",
+      // The DPA of OVH S.r.l. (17.10.2025, 6.2-6.4): companies of the group may process remotely from outside the EEA,
+      // under the standard contractual clauses. Not `null`: it would mean "still to be decided" for the release check
+      dove: "le società del gruppo OVHcloud possono trattare i dati anche da paesi fuori dallo Spazio economico europeo, per la sicurezza e la manutenzione del servizio, con le clausole contrattuali standard della Commissione europea",
       fuoriSee: false,
       documento: "",
     },

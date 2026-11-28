@@ -23,6 +23,9 @@ describe('LEGALE', () => {
     expect(byName.Neon.dove).toMatch(/AWS.*Francoforte/);
     expect(byName.Cloudflare).toMatchObject({ paese: 'Stati Uniti', fuoriSee: true });
     expect(byName.OVHcloud).toMatchObject({ societa: 'OVH S.r.l.', paese: 'Italia', fuoriSee: false });
+    // Its DPA (17.10.2025, 6.2-6.4): group companies may process from outside the EEA, under the standard clauses
+    expect(byName.OVHcloud.dove).toMatch(/fuori dallo Spazio economico europeo/);
+    expect(byName.OVHcloud.dove).toMatch(/clausole contrattuali standard/);
   });
 
   test('every provider outside the Area has the link to the document that describes the transfers', () => {
